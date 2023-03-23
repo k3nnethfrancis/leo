@@ -5,7 +5,7 @@ import yaml
 from typing import Dict, List
 from src.base import Config
 
-load_dotenv()
+load_dotenv(r'/Users/kennycavanagh/Desktop/files/lab/repositories/leo/botenv.env')
 
 
 # load config.yaml
