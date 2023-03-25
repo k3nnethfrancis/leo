@@ -1,7 +1,19 @@
-env
-.env
+
+
+# python
 __pycache__/
+
+# IDE
 */.DS_Store
 .DS_Store
 
+# environment
 *.env
+env
+.env
+
+# folders
+text/*
+processed/*
+
+# file types
