@@ -15,5 +15,7 @@ env
 # folders
 text/*
 processed/*
+notebooks/
+
 
 # file types
