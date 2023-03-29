@@ -19,3 +19,6 @@ notebooks/
 
 
 # file types
+chroma_logs.log
+docs.index
+faiss_store.pkl
