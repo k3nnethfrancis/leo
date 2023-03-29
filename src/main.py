@@ -178,7 +178,7 @@ async def ask_command(int: discord.Interaction, question: str):
         response_data = await generate_qa_completion_response(question=question, user=user)
 
         # Process and send the response
-        await process_qa_response(user=user, interation=int, response_data=response_data)
+        await process_qa_response(user=user, interaction=int, response_data=response_data)
 
     except Exception as e:
         logger.exception(e)
