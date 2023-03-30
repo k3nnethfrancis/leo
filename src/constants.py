@@ -8,6 +8,7 @@ from src.base import Config
 # get the parent directory of the current file
 LEO_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+# load the environment variables from the .env file
 load_dotenv(LEO_DIR+r'/botenv.env')
 
 # Load the contents of config.yaml
