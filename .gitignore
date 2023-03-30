@@ -8,14 +8,9 @@ __pycache__/
 .DS_Store
 
 # environment
-*.env
-env
-.env
 
 # folders
-text/*
 processed/*
-notebooks/
 
 #EmbeddingsDB files and folders
 .chroma/index/
