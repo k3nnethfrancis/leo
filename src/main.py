@@ -1,3 +1,4 @@
+import openai
 import discord
 from discord import Message as DiscordMessage
 import logging
@@ -11,11 +12,8 @@ from src.constants import (
     SECONDS_DELAY_RECEIVING_MSG,
 )
 
-# from src.search import (
-#     BaseRetriever,
-#     generate_document_retrieval_response,
-#     process_document_retrieval_response
-# )
+import logging
+logging.basicConfig(level=logging.INFO)  # Set logging level to INFO
 
 import asyncio
 from src.utils import (
@@ -32,13 +30,6 @@ from src.moderation import (
     moderate_message,
     send_moderation_blocked_message,
     send_moderation_flagged_message,
-)
-
-# retriever = BaseRetriever(index=some_document_index)
-
-# Configure logging settings with a specific format and level
-logging.basicConfig(
-    format="[%(asctime)s] [%(filename)s:%(lineno)d] %(message)s", level=logging.INFO
 )
 
 # Set up Discord Intents and enable access to message content
@@ -166,25 +157,36 @@ async def chat_command(int: discord.Interaction, message: str):
             f"Failed to start chat {str(e)}", ephemeral=True
         )
 
-#### ASK ####
+## ASK ##
 @tree.command(name="ask", description="Ask a question to the bot.")
 async def ask_command(int: discord.Interaction, question: str):
     try:
+        # Send an initial "thinking" response
+        await int.response.send_message("🤖 thinking...", ephemeral=False)
+
         # Get the user who issued the ask command
         user = int.user
-        logger.info(f"Ask command by {user} {question[:20]}")
+        logger.info(f"Ask command by {user} {question}")
 
         # Fetch the QA response
         response_data = await generate_qa_completion_response(question=question, user=user)
 
         # Process and send the response
-        await process_qa_response(user=user, interaction=int, response_data=response_data)
+        await process_qa_response(user=user, interaction=int, question=question, response_data=response_data)
+       
+    except openai.error.RateLimitError as rle:  # Import openai at the beginning of the file if not already done.
+        logger.exception(rle)
+        error_message = "The bot is currently rate-limited. Please wait a moment and try again."
+        await int.followup.send(content=error_message, ephemeral=True)
 
     except Exception as e:
         logger.exception(e)
-        await int.response.send_message(
-            f"Failed to answer question {str(e)}", ephemeral=True
-        )
+        try:
+            # Edit the original response message with an error message
+            await int.edit_original_response(content=f"Failed to answer question. {str(e)}")
+        except Exception as e2:
+            logger.exception(e2)
+            await int.followup.send(content=f"Failed to answer question. {str(e)}", ephemeral=True)
 
 #### THREAD HANDLING ####
 # calls for each message

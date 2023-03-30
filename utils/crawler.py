@@ -25,8 +25,12 @@ openai.api_key=OPENAI_API_KEY
 HTTP_URL_PATTERN = r'^http[s]*://.+'
 
 # Define root domain to crawl
-domain = "talentdao.mirror.xyz/"
-full_url = "https://talentdao.mirror.xyz/"
+# domain = "talentdao.mirror.xyz/"
+# full_url = "https://talentdao.mirror.xyz/"
+
+# now allowed?
+domain = "talentdao.substack.com/"
+full_url = "https://talentdao.substack.com/p/nodw-13-qualitative-insights-from"
 
 # Create a class to parse the HTML and get the hyperlinks
 class HyperlinkParser(HTMLParser):

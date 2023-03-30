@@ -17,8 +17,8 @@ text/*
 processed/*
 notebooks/
 
-
-# file types
+#EmbeddingsDB files and folders
+.chroma/index/
 chroma_logs.log
 docs.index
 faiss_store.pkl
