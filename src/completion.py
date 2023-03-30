@@ -1,4 +1,5 @@
-# Import necessary libraries and modules
+# Description: This file contains the code for generating a response from the OpenAI API
+# Import necessary libraries and modules: enum, dataclass, openai, various functions, and constants from other files.
 from enum import Enum
 from dataclasses import dataclass
 import openai
@@ -17,11 +18,12 @@ from src.moderation import (
     send_moderation_blocked_message,
 )
 
-# Define constants for bot name and example conversations
+# Set bot name and example conversations from imported constants.
 MY_BOT_NAME = BOT_NAME
 MY_BOT_EXAMPLE_CONVOS = EXAMPLE_CONVOS
 
-# Define an enumeration for completion results
+# Create an Enum to represent different completion results a message can have: 
+#   # OK, too long, invalid request, other error, or whether it was flagged or blocked by moderation.
 class CompletionResult(Enum):
     OK = 0
     TOO_LONG = 1
@@ -30,7 +32,7 @@ class CompletionResult(Enum):
     MODERATION_FLAGGED = 4
     MODERATION_BLOCKED = 5
 
-# Define a data class for completion data, which stores the status, reply text, and status text
+# Define a new dataclass named CompletionData
 @dataclass
 class CompletionData:
     status: CompletionResult
@@ -42,20 +44,27 @@ class CompletionData:
 async def generate_completion_response(
     messages: List[Message], user: str
 ) -> CompletionData:
+    '''Generate a completion response from OpenAI's API.
+    
+    Args:
+        messages (List[Message]): A list of Message objects representing the conversation history.
+        user (str): The user's Discord ID.
+        
+    Returns:
+        CompletionData: A CompletionData object containing the completion result, reply text, and status text.
+    '''
     try:
-        # Create a Prompt object using the given messages and predefined bot instructions and example conversations
+        # Create a Prompt instance using bot information and messages provided
         prompt = Prompt(
             header=Message(
-                "System", f"Instructions for {MY_BOT_NAME}: {BOT_INSTRUCTIONS}"
+                "System", f"Instructions for {MY_BOT_NAME}: {BOT_INSTRUCTIONS}" # BOT_INSTRUCTIONS is imported from constants.py
             ),
-            examples=MY_BOT_EXAMPLE_CONVOS,
-            convo=Conversation(messages + [Message(MY_BOT_NAME)]),
+            examples=MY_BOT_EXAMPLE_CONVOS, # MY_BOT_EXAMPLE_CONVOS is imported from constants.py
+            convo=Conversation(messages + [Message(MY_BOT_NAME)]), # Conversation is imported from base.py
         )
-
-        # Render the prompt into a string to be used as input for the GPT model
-        rendered = prompt.render()
-
-        # Generate a response using the OpenAI API with the rendered prompt
+        # Generate the prompt text from the created Prompt instance
+        rendered = prompt.render() # Prompt.render() is defined in base.py
+        # Call OpenAI's API to create a completion using the generated text
         response = openai.Completion.create(
             engine="gpt-3.5-turbo",
             prompt=rendered,
@@ -64,45 +73,42 @@ async def generate_completion_response(
             max_tokens=512,
             stop=[""],
         )
-
-        # Extract and clean the text from the response
+        # Extract and clean the reply text from the generated response
         reply = response.choices[0].text.strip()
 
         # Check if a reply was generated
         if reply:
-            # Moderate the generated reply
+            # Moderate the response message using the moderation framework
             flagged_str, blocked_str = moderate_message(
                 message=(rendered + reply)[-500:], user=user
             )
-
-            # If the reply contains blocked content, return a moderation-blocked CompletionData
+            # If the message is classified as blocked, return a CompletionData with the blocked status
             if len(blocked_str) > 0:
                 return CompletionData(
                     status=CompletionResult.MODERATION_BLOCKED,
                     reply_text=reply,
                     status_text=f"from_response:{blocked_str}",
                 )
-
-            # If the reply contains flagged content, return a moderation-flagged CompletionData
+            # If the message is flagged, return a CompletionData with the flagged status
             if len(flagged_str) > 0:
                 return CompletionData(
                     status=CompletionResult.MODERATION_FLAGGED,
                     reply_text=reply,
                     status_text=f"from_response:{flagged_str}",
                 )
-
-        # If the reply is valid, return a successful CompletionData object
+        # If the result is OK and doesn't trigger any moderation concerns, return the CompletionData with the OK status
         return CompletionData(
             status=CompletionResult.OK, reply_text=reply, status_text=None
         )
-
-    # Handle InvalidRequestError exceptions from the OpenAI API
+    # Handle specific errors and exceptions that can occur during the API call
+    # If the response is too long, return a CompletionData with the too long status
     except openai.error.InvalidRequestError as e:
         if "This model's maximum context length" in e.user_message:
             # If the input exceeds the model's maximum context length, return a too-long CompletionData
             return CompletionData(
                 status=CompletionResult.TOO_LONG, reply_text=None, status_text=str(e)
             )
+        # If the request is invalid, return a CompletionData with the invalid request status
         else:
             # Log the exception and return an invalid-request CompletionData object
             logger.exception(e)
@@ -111,8 +117,7 @@ async def generate_completion_response(
                 reply_text=None,
                 status_text=str(e),
             )
-
-    # Handle any other exceptions that might occur
+    # If any other error occurs, return a CompletionData with the other error status
     except Exception as e:
         # Log the exception and return an other-error CompletionData object
         logger.exception(e)
@@ -120,22 +125,30 @@ async def generate_completion_response(
             status=CompletionResult.OTHER_ERROR, reply_text=None, status_text=str(e)
         )
 
-
-
-# Asynchronous function to process the completion response and send messages in the discord thread accordingly
+# Define a function to process the response from the OpenAI API
 async def process_response(
     user: str, thread: discord.Thread, response_data: CompletionData
 ):
-    # Extract relevant information from the CompletionData object
+    '''
+    Process the response from the OpenAI API and send the response to the user.
+    
+    Parameters:
+        user (str): The user's Discord ID.
+        thread (discord.Thread): The thread the user is in.
+        response_data (CompletionData): The data returned from the OpenAI API.
+        
+        Returns:
+            None
+    '''
+    # Extract the status, reply text, and status text from the CompletionData object
     status = response_data.status
     reply_text = response_data.reply_text
     status_text = response_data.status_text
-
-    # Handle OK and Moderation Flagged responses
+    # If the status is OK, send the reply text to the user
+    # If the status is flagged, send the reply text to the user and send a moderation flagged message
     if status is CompletionResult.OK or status is CompletionResult.MODERATION_FLAGGED:
         sent_message = None
-
-        # If the reply is empty, send an "Invalid response" message
+        # If the reply text is empty, send an empty response message
         if not reply_text:
             sent_message = await thread.send(
                 embed=discord.Embed(
@@ -143,13 +156,12 @@ async def process_response(
                     color=discord.Color.yellow(),
                 )
             )
-        # If the reply is not empty, split it into shorter messages and send them
+        # If the reply text is too long, send a message saying the response is too long
         else:
             shorter_response = split_into_shorter_messages(reply_text)
             for r in shorter_response:
                 sent_message = await thread.send(r)
-
-        # If the response is flagged by moderation, send a moderation flagged message
+        # If the status is flagged, send a moderation flagged message
         if status is CompletionResult.MODERATION_FLAGGED:
             await send_moderation_flagged_message(
                 guild=thread.guild,
@@ -158,15 +170,14 @@ async def process_response(
                 message=reply_text,
                 url=sent_message.jump_url if sent_message else "no url",
             )
-
-            # Inform the user that the conversation has been flagged by moderation
+            # Send a message saying the conversation has been flagged
             await thread.send(
                 embed=discord.Embed(
                     description=f"⚠️ **This conversation has been flagged by moderation.**",
                     color=discord.Color.yellow(),
                 )
             )
-    # Handle Moderation Blocked responses
+    # If the status is blocked, send a moderation blocked message and send a message saying the response has been blocked
     elif status is CompletionResult.MODERATION_BLOCKED:
         # Send a moderation blocked message
         await send_moderation_blocked_message(
@@ -175,15 +186,15 @@ async def process_response(
             blocked_str=status_text,
             message=reply_text,
         )
-
-        # Inform the user that the response has been blocked by moderation
+        # Send a message saying the response has been blocked
         await thread.send(
             embed=discord.Embed(
                 description=f"❌ **The response has been blocked by moderation.**",
                 color=discord.Color.red(),
             )
         )
-    # Handle Too Long responses
+    # If the status is too long, close the thread
+    # If the status is invalid request, send a message saying the request is invalid
     elif status is CompletionResult.TOO_LONG:
         # Close the thread due to the response being too long
         await close_thread(thread)
@@ -196,7 +207,7 @@ async def process_response(
                 color=discord.Color.yellow(),
             )
         )
-    # Handle any other errors
+    # If the status is other error, send a message saying an error occurred
     else:
         # Inform the user that an error occurred
         await thread.send(

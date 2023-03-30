@@ -1,3 +1,4 @@
+import openai
 import discord
 from discord import Message as DiscordMessage
 import logging
@@ -10,6 +11,10 @@ from src.constants import (
     MAX_THREAD_MESSAGES,
     SECONDS_DELAY_RECEIVING_MSG,
 )
+
+import logging
+logging.basicConfig(level=logging.INFO)  # Set logging level to INFO
+
 import asyncio
 from src.utils import (
     logger,
@@ -19,6 +24,7 @@ from src.utils import (
     discord_message_to_message,
 )
 from src import completion
+from src.qa import generate_qa_completion_response, process_qa_response
 from src.completion import generate_completion_response, process_response
 from src.moderation import (
     moderate_message,
@@ -26,22 +32,24 @@ from src.moderation import (
     send_moderation_flagged_message,
 )
 
-logging.basicConfig(
-    format="[%(asctime)s] [%(filename)s:%(lineno)d] %(message)s", level=logging.INFO
-)
-
+# Set up Discord Intents and enable access to message content
 intents = discord.Intents.default()
 intents.message_content = True
 
+# Instantiate a discord.Client object with the specified intents
 client = discord.Client(intents=intents)
+# Instantiate a CommandTree object that will hold the bot's command hierarchy
 tree = discord.app_commands.CommandTree(client)
 
-
+# Event triggered when the bot starts and logs in
 @client.event
 async def on_ready():
+    # Log bot's username and invite URL
     logger.info(f"We have logged in as {client.user}. Invite URL: {BOT_INVITE_URL}")
+    # Set the bot's name and initialize an empty list to store example conversations
     completion.MY_BOT_NAME = client.user.name
     completion.MY_BOT_EXAMPLE_CONVOS = []
+    # Iterate through the EXAMPLE_CONVOS list and create corresponding Conversation objects
     for c in EXAMPLE_CONVOS:
         messages = []
         for m in c.messages:
@@ -50,11 +58,13 @@ async def on_ready():
             else:
                 messages.append(m)
         completion.MY_BOT_EXAMPLE_CONVOS.append(Conversation(messages=messages))
+    # Sync the CommandTree with the bot's commands
     await tree.sync()
 
-
+# Register a chat command with the bot
 # /chat message:
 @tree.command(name="chat", description="Create a new thread for conversation")
+# Define permissions for the user and the bot
 @discord.app_commands.checks.has_permissions(send_messages=True)
 @discord.app_commands.checks.has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
@@ -69,7 +79,8 @@ async def chat_command(int: discord.Interaction, message: str):
         # block servers not in allow list
         if should_block(guild=int.guild):
             return
-
+        
+        # Get the user who issued the chat command
         user = int.user
         logger.info(f"Chat command by {user} {message[:20]}")
         try:
@@ -81,6 +92,7 @@ async def chat_command(int: discord.Interaction, message: str):
                 blocked_str=blocked_str,
                 message=message,
             )
+            # If the message is blocked by moderation, notify the user and return
             if len(blocked_str) > 0:
                 # message was blocked
                 await int.response.send_message(
@@ -88,21 +100,25 @@ async def chat_command(int: discord.Interaction, message: str):
                     ephemeral=True,
                 )
                 return
-
+            
+            # Create an embed for the chat command and add user's name and message
             embed = discord.Embed(
                 description=f"<@{user.id}> wants to chat! 🤖💬",
                 color=discord.Color.green(),
             )
             embed.add_field(name=user.name, value=message)
 
+            # If the message is flagged by moderation, add a warning to the embed
             if len(flagged_str) > 0:
                 # message was flagged
                 embed.color = discord.Color.yellow()
                 embed.title = "⚠️ This prompt was flagged by moderation."
-
+            
+            # Send the embed as a response
             await int.response.send_message(embed=embed)
             response = await int.original_response()
 
+            # Send a notification if the message was flagged by moderation
             await send_moderation_flagged_message(
                 guild=int.guild,
                 user=user,
@@ -117,13 +133,14 @@ async def chat_command(int: discord.Interaction, message: str):
             )
             return
 
-        # create the thread
+        # create the thread for the conversation
         thread = await response.create_thread(
             name=f"{ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
             slowmode_delay=1,
             reason="gpt-bot",
             auto_archive_duration=60,
         )
+        # Show the bot is typing in the thread
         async with thread.typing():
             # fetch completion
             messages = [Message(user=user.name, text=message)]
@@ -140,8 +157,40 @@ async def chat_command(int: discord.Interaction, message: str):
             f"Failed to start chat {str(e)}", ephemeral=True
         )
 
+## ASK ##
+@tree.command(name="ask", description="Ask a question to the bot.")
+async def ask_command(int: discord.Interaction, question: str):
+    try:
+        # Send an initial "thinking" response
+        await int.response.send_message("🤖 thinking...", ephemeral=False)
 
+        # Get the user who issued the ask command
+        user = int.user
+        logger.info(f"Ask command by {user} {question}")
+
+        # Fetch the QA response
+        response_data = await generate_qa_completion_response(question=question, user=user)
+
+        # Process and send the response
+        await process_qa_response(user=user, interaction=int, question=question, response_data=response_data)
+       
+    except openai.error.RateLimitError as rle:  # Import openai at the beginning of the file if not already done.
+        logger.exception(rle)
+        error_message = "The bot is currently rate-limited. Please wait a moment and try again."
+        await int.followup.send(content=error_message, ephemeral=True)
+
+    except Exception as e:
+        logger.exception(e)
+        try:
+            # Edit the original response message with an error message
+            await int.edit_original_response(content=f"Failed to answer question. {str(e)}")
+        except Exception as e2:
+            logger.exception(e2)
+            await int.followup.send(content=f"Failed to answer question. {str(e)}", ephemeral=True)
+
+#### THREAD HANDLING ####
 # calls for each message
+# Event that triggers when a message is sent in a channel or thread
 @client.event
 async def on_message(message: DiscordMessage):
     try:
@@ -171,7 +220,8 @@ async def on_message(message: DiscordMessage):
         ):
             # ignore this thread
             return
-
+        
+        # Close the thread if the message count exceeds the maximum limit
         if thread.message_count > MAX_THREAD_MESSAGES:
             # too many messages, no longer going to reply
             await close_thread(thread=thread)
@@ -187,6 +237,7 @@ async def on_message(message: DiscordMessage):
             blocked_str=blocked_str,
             message=message.content,
         )
+        # If the message is blocked by moderation, delete it and notify the thread
         if len(blocked_str) > 0:
             try:
                 await message.delete()
@@ -205,6 +256,7 @@ async def on_message(message: DiscordMessage):
                     )
                 )
                 return
+        # Inform the thread if the message was flagged by moderation
         await send_moderation_flagged_message(
             guild=message.guild,
             user=message.author,
@@ -234,7 +286,8 @@ async def on_message(message: DiscordMessage):
         logger.info(
             f"Thread message to process - {message.author}: {message.content[:50]} - {thread.name} {thread.jump_url}"
         )
-
+        
+        # Fetch messages from the thread, apply relevant conversions, and reverse the order
         channel_messages = [
             discord_message_to_message(message)
             async for message in thread.history(limit=MAX_THREAD_MESSAGES)
@@ -262,6 +315,5 @@ async def on_message(message: DiscordMessage):
         )
     except Exception as e:
         logger.exception(e)
-
 
 client.run(DISCORD_BOT_TOKEN)

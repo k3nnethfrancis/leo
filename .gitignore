@@ -1,7 +1,25 @@
-env
-.env
+
+
+# python
 __pycache__/
+
+# IDE
 */.DS_Store
 .DS_Store
 
+# environment
+*.env
+env
+.env
+
+# folders
+text/*
+processed/*
+notebooks/
+
+#EmbeddingsDB files and folders
+.chroma/index/
+chroma_logs.log
+docs.index
+faiss_store.pkl
 *.env
