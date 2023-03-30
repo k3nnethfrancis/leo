@@ -10,3 +10,6 @@ matplotlib
 plotly
 scipy
 scikit-learn
+pickle
+langchain
+faiss-cpu
