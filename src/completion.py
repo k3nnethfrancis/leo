@@ -40,6 +40,7 @@ class CompletionData:
     status_text: Optional[str]
 
 
+# Asynchronous function to generate a response using GPT-3.5-turbo model
 async def generate_completion_response(
     messages: List[Message], user: str
 ) -> CompletionData:
@@ -65,15 +66,17 @@ async def generate_completion_response(
         rendered = prompt.render() # Prompt.render() is defined in base.py
         # Call OpenAI's API to create a completion using the generated text
         response = openai.Completion.create(
-            engine="text-davinci-003",
+            engine="gpt-3.5-turbo",
             prompt=rendered,
             temperature=1.0,
             top_p=0.9,
             max_tokens=512,
-            stop=["<|endoftext|>"],
+            stop=[""],
         )
         # Extract and clean the reply text from the generated response
         reply = response.choices[0].text.strip()
+
+        # Check if a reply was generated
         if reply:
             # Moderate the response message using the moderation framework
             flagged_str, blocked_str = moderate_message(
@@ -101,11 +104,13 @@ async def generate_completion_response(
     # If the response is too long, return a CompletionData with the too long status
     except openai.error.InvalidRequestError as e:
         if "This model's maximum context length" in e.user_message:
+            # If the input exceeds the model's maximum context length, return a too-long CompletionData
             return CompletionData(
                 status=CompletionResult.TOO_LONG, reply_text=None, status_text=str(e)
             )
         # If the request is invalid, return a CompletionData with the invalid request status
         else:
+            # Log the exception and return an invalid-request CompletionData object
             logger.exception(e)
             return CompletionData(
                 status=CompletionResult.INVALID_REQUEST,
@@ -114,6 +119,7 @@ async def generate_completion_response(
             )
     # If any other error occurs, return a CompletionData with the other error status
     except Exception as e:
+        # Log the exception and return an other-error CompletionData object
         logger.exception(e)
         return CompletionData(
             status=CompletionResult.OTHER_ERROR, reply_text=None, status_text=str(e)
@@ -173,6 +179,7 @@ async def process_response(
             )
     # If the status is blocked, send a moderation blocked message and send a message saying the response has been blocked
     elif status is CompletionResult.MODERATION_BLOCKED:
+        # Send a moderation blocked message
         await send_moderation_blocked_message(
             guild=thread.guild,
             user=user,
@@ -189,8 +196,11 @@ async def process_response(
     # If the status is too long, close the thread
     # If the status is invalid request, send a message saying the request is invalid
     elif status is CompletionResult.TOO_LONG:
+        # Close the thread due to the response being too long
         await close_thread(thread)
+    # Handle Invalid Request responses
     elif status is CompletionResult.INVALID_REQUEST:
+        # Inform the user that the request was invalid
         await thread.send(
             embed=discord.Embed(
                 description=f"**Invalid request** - {status_text}",
@@ -199,6 +209,7 @@ async def process_response(
         )
     # If the status is other error, send a message saying an error occurred
     else:
+        # Inform the user that an error occurred
         await thread.send(
             embed=discord.Embed(
                 description=f"**Error** - {status_text}",
