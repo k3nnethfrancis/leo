@@ -8,7 +8,7 @@ from src.base import Config
 # get the parent directory of the current file
 LEO_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-load_dotenv(r'/Users/kennycavanagh/Desktop/files/lab/repositories/leo/botenv.env')
+load_dotenv(LEO_DIR+r'/botenv.env')
 
 # Load the contents of config.yaml
 # Get the script's directory
