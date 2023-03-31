@@ -1,36 +1,24 @@
-# Please read!
+# Project LION Discord Bot
 
+Fork of OpenAI Discord bot written in Python that uses the [completions API](https://beta.openai.com/docs/api-reference/completions) to have conversations and ask questions over documents with gpt-3. Uses the the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages. 
 
-**For any problems running this specific bot:** [Discord Project Post](https://discord.com/channels/974519864045756446/1055336272543092757)
-
-**For general OpenAI API problems or questions:** [Discord API Discussions](https://discord.com/channels/974519864045756446/1037561178286739466)
-
-**For bugs in the template code:** create an Issue
-
-**For feature requests:** this repo is not accepting feature requests, you can discuss potential features in [Discord Project Post](https://discord.com/channels/974519864045756446/1055336272543092757)
-
-**For PRs:** only bug fix PRs wil be accepted. If you are implementing a new feature, please fork this repo.
-
-Thank you!
-
----
-# GPT Discord Bot
-
-Example Discord bot written in Python that uses the [completions API](https://beta.openai.com/docs/api-reference/completions) to have conversations with the `text-davinci-003` model, and the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages.
-
-**THIS IS NOT CHATGPT.**
-
-This bot uses the [OpenAI Python Library](https://github.com/openai/openai-python) and [discord.py](https://discordpy.readthedocs.io/).
+This bot uses the [OpenAI Python Library](https://github.com/openai/openai-python), [discord.py](https://discordpy.readthedocs.io/), and langchain.
 
 
 # Features
-
+### Chat
 - `/chat` starts a public thread, with a `message` argument which is the first user message passed to the bot
 - The model will generate a reply for every user message in any threads started with `/chat`
 - The entire thread will be passed to the model for each request, so the model will remember previous messages in the thread
 - when the context limit is reached, or a max message count is reached in the thread, bot will close the thread
 - you can customize the bot instructions by modifying `config.yaml`
 - you can change the model, the hardcoded value is `text-davinci-003`
+
+### Q&A
+- `/ask` initializes a document search Q&A query
+- The model will search over documents in the text/ folder
+- The users question will be displayed in the models response
+- You can add any .txt documents to the text/ folder for the model to use them in its search
 
 # Setup
 
@@ -43,6 +31,9 @@ This bot uses the [OpenAI Python Library](https://github.com/openai/openai-pytho
     - Enable "Message Content Intent" under "Privileged Gateway Intents"
 1. Go to the OAuth2 tab, copy your "Client ID", and fill in `DISCORD_CLIENT_ID`
 1. Copy the ID the server you want to allow your bot to be used in by right clicking the server icon and clicking "Copy ID". Fill in `ALLOWED_SERVER_IDS`. If you want to allow multiple servers, separate the IDs by "," like `server_id_1,server_id_2`
+
+1. Add your documents as .txt files to the text/ folder.
+
 1. Install dependencies and run the bot
     ```
     pip install -r requirements.txt
@@ -50,6 +41,7 @@ This bot uses the [OpenAI Python Library](https://github.com/openai/openai-pytho
     ```
     You should see an invite URL in the console. Copy and paste it into your browser to add the bot to your server.
     Note: make sure you are using Python 3.9+ (check with python --version)
+
 
 # Optional configuration
 
