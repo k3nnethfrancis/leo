@@ -1,0 +1,25 @@
+Current TalentDAO projects:
+
+# Product:
+Journal of Decentralized Work: Our flagship development aiming to build the first open access decentralized journal from the social sciences.
+
+# Research:
+Network Health: A broad research topic exploring human coordination metrics in DAOs. Led by k3nn.eth and saulthorin.eth.
+DAO Health: Research that aims to design a psychometric instrument for assessing the organizational health of a DAO. Researchers are currently working on survey validation and the development of a shorter pulse version of the survey.
+Discourse Research: Research that aims to use NLP to understand how decentralized forums function.
+Project LION: Research that aims to leverage state of the art AI models like GPT-4 to create digital assistants for DAOs.
+Decentralized Leadership: Research that is looking into leadership behavior in DAOs.
+DAOversity: Research looking to understand diversity in the decentralized ecosystem.
+DAOnboarding: Research aimed at figuring out what the best onboarding practices are for maximizing contributions from new members.
+DAO Compensation Perceptions: Research that aims to understand the new kinds of compensation strategies at play in decentralized organizations.
+DAO Structure & Design: Research project aiming to create a body of work and taxonomy for DAO structure and design.
+
+# Community:
+Newsletter of Decentralized Work: Our monthly newsletter that shares knowledge and resources from the DAO and Decentralized Science community.
+Grant Writing: an ongoing effort to get talentDAO projects funded. We give grant writers 10% of the grant funds as an incentive!
+
+# Business development
+General Business Development: Help talentDAO find clients for their research as a service offering, DAO Health implementation, or governance consulting.
+
+# Consulting
+talent Consultant: Implement talentDAO research as a service for other DAOs and businesses, implement the DAO Health survey, design custom research projects, or consult on governance.
