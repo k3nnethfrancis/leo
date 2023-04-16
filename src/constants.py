@@ -36,6 +36,9 @@ server_ids = os.environ["ALLOWED_SERVER_IDS"].split(",")
 for s in server_ids:
     ALLOWED_SERVER_IDS.append(int(s))
 
+# Replace CHANNEL_ID with the ID of the channel you want to fetch the messages from
+TARGET_CHANNEL_ID = 1094758337226215524 # intro channel id from my personal dev server
+
 # Create a dictionary to map server IDs to their corresponding moderation channels
 SERVER_TO_MODERATION_CHANNEL: Dict[int, int] = {}
 # Retrieve the server_channels string from environment variables, or use an empty string if not present

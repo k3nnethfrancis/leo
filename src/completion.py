@@ -19,6 +19,10 @@ from src.moderation import (
     send_moderation_blocked_message,
 )
 
+# for listening to intros
+# Put the ID of the Discord Channel you want the bot to respond to
+devserve_LEO_LISTEN_CHANNEL_ID = 1094758337226215524  # Replace with your desired Channel ID
+
 # Set bot name and example conversations from imported constants.
 MY_BOT_NAME = BOT_NAME
 MY_BOT_EXAMPLE_CONVOS = EXAMPLE_CONVOS

@@ -18,3 +18,4 @@ log/*
 chroma_logs.log
 docs.index
 faiss_store.pkl
+msg_log/1094758337226215524.txt

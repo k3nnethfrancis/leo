@@ -1,8 +1,15 @@
+import os
+import asyncio
+import logging
 import openai
 import discord
 from discord import Message as DiscordMessage
-import logging
-from src.base import Message, Conversation
+from typing import List, Tuple
+
+from src.base import (
+    Message,
+    Conversation
+)
 from src.constants import (
     BOT_INVITE_URL,
     DISCORD_BOT_TOKEN,
@@ -10,24 +17,22 @@ from src.constants import (
     ACTIVATE_THREAD_PREFX,
     MAX_THREAD_MESSAGES,
     SECONDS_DELAY_RECEIVING_MSG,
+    OPENAI_API_KEY,
+    TARGET_CHANNEL_ID
 )
-
-# set up logging
-# logging.basicConfig(level=logging.INFO)  # Set logging level to INFO
-logging.basicConfig(level=logging.DEBUG)  # Set logging level to DEBUG
-
-
-
-import asyncio
 from src.utils import (
     logger,
     should_block,
     close_thread,
     is_last_message_stale,
     discord_message_to_message,
+    save_messages_to_file
+)
+from src.qa import (
+    generate_qa_completion_response,
+    process_qa_response
 )
 from src import completion
-from src.qa import generate_qa_completion_response, process_qa_response
 from src.completion import (
     generate_completion_response,
     process_response,
@@ -38,19 +43,68 @@ from src.moderation import (
     send_moderation_blocked_message,
     send_moderation_flagged_message,
 )
+from src.onboard import (
+    is_intro,
+    get_dynamic_prompt,
+    ProjectRecommender
+)
 
-# Set up Discord Intents and enable access to message content
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)  # Set logging level to DEBUG
+
+# Initialize the OpenAI instance
+from langchain import OpenAI
+llm = OpenAI(openai_api_key=OPENAI_API_KEY)
+
+# Create a ProjectRecommender object
+recommender = ProjectRecommender()
+
+# Set the intents to include the message content
 intents = discord.Intents.default()
 intents.message_content = True
 
 # Instantiate a discord.Client object with the specified intents
 client = discord.Client(intents=intents)
+
 # Instantiate a CommandTree object that will hold the bot's command hierarchy
 tree = discord.app_commands.CommandTree(client)
 
 # Event triggered when the bot starts and logs in
 @client.event
 async def on_ready():
+    
+    ### Message logging ###
+    async def fetch_and_save_messages(client: discord.Client, limit: int = 100) -> List[Tuple[str, str, int]]:
+        # Fetch the last 100 messages from the desired channel
+        channel = await client.fetch_channel(TARGET_CHANNEL_ID)
+        
+        messages = []
+        # Iterate through the channel history and add the messages to the list
+        async for message in channel.history(limit=limit):
+            messages.append((message.content, message.author.name, message.id))
+
+        # Save the messages to a file in the msg_log folder with the file name as the channel ID
+        save_messages_to_file(messages, folder="msg_log", filename=f"{TARGET_CHANNEL_ID}")
+
+        return messages
+
+    # Fetch the last 10 messages
+    messages = await fetch_and_save_messages(client, limit=10)
+
+    target_channel = await client.fetch_channel(TARGET_CHANNEL_ID)
+
+    for content, author_name, message_id in messages:
+        if is_intro(llm, content):
+            # Get recommended projects
+            recommended_projects = recommender.get_relevant_projects(content)
+            recommended_projects_str = "\n".join(recommended_projects)
+
+            # Fetch the original message using the message ID
+            original_message = await target_channel.fetch_message(message_id)
+
+            # Send a true reply to the original message ONLY if it's an intro
+            await original_message.reply(recommended_projects_str)
+    
     # Log bot's username and invite URL
     logger.info(f"We have logged in as {client.user}. Invite URL: {BOT_INVITE_URL}")
     # Set the bot's name and initialize an empty list to store example conversations
@@ -60,13 +114,16 @@ async def on_ready():
     for c in EXAMPLE_CONVOS:
         messages = []
         for m in c.messages:
-            if m.user == "Lenard":
+            #if m.user == "Lenard":
+            if m.user == "leo-bot":
                 messages.append(Message(user=client.user.name, text=m.text))
             else:
                 messages.append(m)
         completion.MY_BOT_EXAMPLE_CONVOS.append(Conversation(messages=messages))
     # Sync the CommandTree with the bot's commands
     await tree.sync()
+
+### CHAT ###
 
 # Register a chat command with the bot
 # /chat message:
