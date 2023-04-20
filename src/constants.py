@@ -27,7 +27,7 @@ EXAMPLE_CONVOS = CONFIG.example_conversations
 DISCORD_BOT_TOKEN = os.environ["DISCORD_BOT_TOKEN"]
 DISCORD_CLIENT_ID = os.environ["DISCORD_CLIENT_ID"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-TARGET_CHANNEL_ID = os.environ["TARGET_CHENNEL_ID"] # intro channel id for onboarding bot
+TARGET_CHANNEL_ID = os.environ["TARGET_CHANNEL_ID"] # intro channel id for onboarding bot
 
 # Initialize an empty list to store allowed server IDs
 ALLOWED_SERVER_IDS: List[int] = []
