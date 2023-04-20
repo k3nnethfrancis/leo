@@ -1,0 +1,24 @@
+
+    Discourse Research
+
+    PurposeThe basic idea of this project is to use the available data of DAOs' discussions in order to analyze it and, if possible, build tools to ease and/or improve DAOs discussions and decisionsGoals and Key-OutcomesScrap and clean DAOs discussionScrap DAO's data from discussion spaces (Discourse, Discord, etc).Parsing and tokenizing the text using basic NLP techniques in order to have a nice and clean corpus of text.Analysis of these dataCreate concurrence matrices of latent topics with meta-data like category tags and visualize the number of likes to help us better understand what topics and categories are driving engagement on DAOs discussions.Identify common noun and verb phrases to get a better idea of the precise ideas that are central to engagement in DAOs discussion.Fine-tune a latent topic modeling to determine the optimal number of latent topics.Creation of more evolved toolsConvert the unsupervised topic clouds to real topics by feeding gpt3 to the top words in the topic to provide better human readability.Employ newer topic modeling packages like BerTopic that allow guided topic modeling to get better topic suggestions.Pursue the development of commercial software such as a DAO governance tool, knowledge graph management system, and research chat bot.IdeasThe first idea is to scrap all the text of Discourse posts along with the following metadata (e.g. category tags, number of likes, etc). Then parsing and tokenizing the text using basic NLP techniques. After we have a nice clean corpus of text usable for further analysis or for building tools.After that, several techniques of text data mining can be used in order to visualize and understand the discussions and the behaviors in these discussion spaces.Ideally, in a third time, an automated DAO Governance expert bot. The framework is quite simple:- use ALL public DAO governance forums as training data;- use the model to build a chat bot/fine tune existing ones that will be able to understand "Write a DAO operating agreement that takes into account x,y,z .." and then spits out a draft.StatusPHASE 1 [COMPLETED]: Test with SCRF Discourse LDA analysisThe outcome of the first phase has been shared in a post on the SCRF forum.Summary of the work done and the scripts createdI was able to set up the Sourcecred Discourse Node.js plug-in to scrape the SCRF site and downloaded 3703 posts in SQLite format. Python plays nicely with SQLite, so the NLP can be run directly on the SQLite database file. Here's a link to my Google Colab notebook with cleaning, tokenizing, and a simple NLP example of sentiment analysis on the SCRF posts: https://colab.research.google.com/drive/1zpoRHH0h4zIjsC5v0L7CFpRhkjGnhTAl?usp=sharingYou can copy the code to your own notebook to create your own NLP analyses on the SCRF posts. Also, you'll need to copy the attached sqlite file of SCRF posts to your base Google Drive folder to run analyses. You can view the sqlite file structure by running this code in your notebook: cursor = conn.execute('select * from posts')
+
+cursor.descriptionI should mention that besides the posts, there are other tables in the SCRF sqlite database:meta
+
+sync_heads
+
+users
+
+topics
+
+topic_tags
+
+posts
+
+likesYou can view the list of tables by running this code in your notebook:conn = sqlite3.connect('/content/drive/MyDrive/Discourse_project/SCRFdiscourseMirror.db')
+
+res = conn.execute("SELECT name FROM sqlite_master WHERE type='table';")
+
+for name in res.fetchall():
+
+    print(name[0])     Here's a link to the notebook with the LDA analysis for anyone interested: https://colab.research.google.com/drive/1ug5In6qSA4pGeVDFJRyqXhqeqDT092X8?usp=sharingHere's a link to the SCRF-LDA Mallet topic modeling notebook in case anyone wants to explore, refine, etc.: https://colab.research.google.com/drive/1AvjQkpth6oQsGq_3eH8vwwsbGYi8eay6?usp=sharing PHASE 2 [ON-GOING]: Extending to 60 DiscourseNext steps would be to scrape a bunch of DAO forum posts and organize them into a database somewhere. Then we can start doing NLP at scale and some statistical analysis. I would use https://deepdao.io/organizations as a quick reference and then scrape:top 20 projects with largest treasuriestop 20 projects with most proposals created evertop 20 projects with highest voter participationThe table with the DAOs, the data and the discourse URLs is available here:If the data size is manageable then I'd just build a scrip to collect , process, and store the data locally. I think it be better though to store somewhere other data scientists can access. Suggest a simple digital ocean deployment then store in something like MongoDB or even just plane ole PostgresSQL. I'd like to have all of this stored decentralized but go with what is easy/fast at this stage.

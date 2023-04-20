@@ -9,6 +9,7 @@ __pycache__/
 *.env
 
 # testing files
+notebooks/
 .ipynb
 
 #EmbeddingsDB, files and folders
