@@ -20,6 +20,9 @@ This bot uses the [OpenAI Python Library](https://github.com/openai/openai-pytho
 - The users question will be displayed in the models response
 - You can add any .txt documents to the text/ folder for the model to use them in its search
 
+### Onboaording bot [project recommender]
+- Leo recommends projects based on your documents
+
 # Setup
 
 1. Copy `.env.example` to `.env` and start filling in the values as detailed below
@@ -31,6 +34,7 @@ This bot uses the [OpenAI Python Library](https://github.com/openai/openai-pytho
     - Enable "Message Content Intent" under "Privileged Gateway Intents"
 1. Go to the OAuth2 tab, copy your "Client ID", and fill in `DISCORD_CLIENT_ID`
 1. Copy the ID the server you want to allow your bot to be used in by right clicking the server icon and clicking "Copy ID". Fill in `ALLOWED_SERVER_IDS`. If you want to allow multiple servers, separate the IDs by "," like `server_id_1,server_id_2`
+1. Copy the target channel ID for your introductions channel and fill it in 'TARGET_CHANNEL_ID' for the onboarding bot to work [currently only executes once at runtime]
 
 1. Add your documents as .txt files to the text/ folder.
 
