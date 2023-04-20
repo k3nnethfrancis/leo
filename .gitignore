@@ -24,3 +24,4 @@ msg_log/*
 # config
 data/cfg/*
 data/cfg/.*
+data/cfg/*.json
