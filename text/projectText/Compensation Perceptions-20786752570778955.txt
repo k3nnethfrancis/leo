@@ -1,4 +1,0 @@
-
-    Compensation Perceptions
-
-    Worker Compensation StudyPrincipal Researcher:  Github RepositoryPurposeImportant to study the human behavioral facets of DAOs. DAOs must consider fundamental operating procedures such as governance structures related to contributor compensation and its effect on contributor engagement, performance, and retention in the DAO.Goals or Key OutcomesA peer-reviewed journal publication legitimising DAO research in I-O psychology.Research-backed best practices for DAOs related to how compensation governance structures affect contributor engagement, performance, and retention.StatusPhase 1: Data CollectionPhase 2: Mean difference analysisPhase 3: Initial findings & community feedbackPhase 4: DAG & PROCESS ModellingPhase 5: Conclusions reportedPhase 6: Publication Draft #1Phase 7: Publication Draft #nPhase 8: Final Publication uploaded into the Journal of Decentralized Work 
