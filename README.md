@@ -1,9 +1,6 @@
 # Project LION Discord Bot
 
-Fork of OpenAI Discord bot written in Python that uses the [completions API](https://beta.openai.com/docs/api-reference/completions) to have conversations and ask questions over documents with gpt-3.5-turbo. Uses the the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages. 
-
-This bot uses the [OpenAI Python Library](https://github.com/openai/openai-python), [discord.py](https://discordpy.readthedocs.io/), and [LangChain](https://python.langchain.com/).
-
+Forked the OpenAI Discord bot and upgraded the model to gpt-3.5-turbo, added questions over documents feature, experimenting on onboarding project recommender feature. Also uses the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages. 
 
 # Features
 ### Chat
@@ -20,8 +17,8 @@ This bot uses the [OpenAI Python Library](https://github.com/openai/openai-pytho
 - The users question will be displayed in the models response
 - You can add any .txt documents to the text/ folder for the model to use them in its search
 
-### Onboaording bot [project recommender]
-- Leo recommends projects based on your documents
+### Onboaording project recommender [experimental]
+- Leo recommends projects to new users based of their introduction message and your DAOs documents
 
 # Setup
 
