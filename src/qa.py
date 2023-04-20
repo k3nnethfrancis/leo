@@ -43,7 +43,7 @@ def load_documents(directory):
 # Process the documents into a Chroma index
 def process_documents(documents):
     logger.info("Processing documents...")
-    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
     texts = text_splitter.split_documents(documents)
     embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
     docsearch = Chroma.from_documents(texts, embeddings)
