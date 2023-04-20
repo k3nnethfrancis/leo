@@ -2,9 +2,10 @@
 # Import necessary libraries and modules: enum, dataclass, openai, various functions, and constants from other files.
 from enum import Enum
 from dataclasses import dataclass
+import logging
 import openai
 from src.moderation import moderate_message
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from src.constants import (
     BOT_INSTRUCTIONS,
     BOT_NAME,
@@ -17,6 +18,10 @@ from src.moderation import (
     send_moderation_flagged_message,
     send_moderation_blocked_message,
 )
+
+# for listening to intros
+# Put the ID of the Discord Channel you want the bot to respond to
+devserve_LEO_LISTEN_CHANNEL_ID = 1094758337226215524  # Replace with your desired Channel ID
 
 # Set bot name and example conversations from imported constants.
 MY_BOT_NAME = BOT_NAME
@@ -127,32 +132,30 @@ async def generate_completion_response(
 
 # Define a function to process the response from the OpenAI API
 async def process_response(
-    user: str, thread: discord.Thread, response_data: CompletionData
+    user: str, thread: discord.Thread, response_data: CompletionData, is_gpt35_turbo: bool = False
 ):
-    '''
-    Process the response from the OpenAI API and send the response to the user.
-    
-    Parameters:
-        user (str): The user's Discord ID.
-        thread (discord.Thread): The thread the user is in.
-        response_data (CompletionData): The data returned from the OpenAI API.
-        
-        Returns:
-            None
-    '''
-    # Extract the status, reply text, and status text from the CompletionData object
-    status = response_data.status
+    logger.debug(f"Started processing response for user {user} in thread {thread.name}")
+    # Check if a "status" attribute exists in response_data, otherwise assume it's successful
+    status = response_data.status if hasattr(response_data, "status") else "successful"
+
+    # Extract the reply_text and status_text from the CompletionData object
     reply_text = response_data.reply_text
-    status_text = response_data.status_text
+    status_text = response_data.status_text if hasattr(response_data, "status_text") else ""
+    
+
     # If the status is OK, send the reply text to the user
     # If the status is flagged, send the reply text to the user and send a moderation flagged message
-    if status is CompletionResult.OK or status is CompletionResult.MODERATION_FLAGGED:
+    if status == CompletionResult.OK or status == CompletionResult.MODERATION_FLAGGED:
         sent_message = None
-        # If the reply text is empty, send an empty response message
         if not reply_text:
+            # If is_gpt35_turbo is True, change the error message for an empty response
+            if is_gpt35_turbo:
+                description = f"**Invalid response** - empty response from GPT-3.5 Turbo"
+            else:
+                description = f"**Invalid response** - empty response"
             sent_message = await thread.send(
                 embed=discord.Embed(
-                    description=f"**Invalid response** - empty response",
+                    description=description,
                     color=discord.Color.yellow(),
                 )
             )
@@ -162,7 +165,7 @@ async def process_response(
             for r in shorter_response:
                 sent_message = await thread.send(r)
         # If the status is flagged, send a moderation flagged message
-        if status is CompletionResult.MODERATION_FLAGGED:
+        if status == CompletionResult.MODERATION_FLAGGED:
             await send_moderation_flagged_message(
                 guild=thread.guild,
                 user=user,
@@ -178,8 +181,7 @@ async def process_response(
                 )
             )
     # If the status is blocked, send a moderation blocked message and send a message saying the response has been blocked
-    elif status is CompletionResult.MODERATION_BLOCKED:
-        # Send a moderation blocked message
+    elif status == CompletionResult.MODERATION_BLOCKED:
         await send_moderation_blocked_message(
             guild=thread.guild,
             user=user,
@@ -196,11 +198,10 @@ async def process_response(
     # If the status is too long, close the thread
     # If the status is invalid request, send a message saying the request is invalid
     elif status is CompletionResult.TOO_LONG:
-        # Close the thread due to the response being too long
+        logger.debug(f"Started processing response for user {user} in thread {thread.name}")
         await close_thread(thread)
-    # Handle Invalid Request responses
-    elif status is CompletionResult.INVALID_REQUEST:
-        # Inform the user that the request was invalid
+    elif status == CompletionResult.INVALID_REQUEST:
+        logger.debug(f"Status: {status}; Invalid request for user {user} in thread {thread.name}")  # NEW logging statement
         await thread.send(
             embed=discord.Embed(
                 description=f"**Invalid request** - {status_text}",
@@ -209,10 +210,34 @@ async def process_response(
         )
     # If the status is other error, send a message saying an error occurred
     else:
-        # Inform the user that an error occurred
+        logger.debug(f"Other error for user {user} in thread {thread.name}; status_text: {status_text}")  # NEW logging statement
         await thread.send(
             embed=discord.Embed(
                 description=f"**Error** - {status_text}",
                 color=discord.Color.yellow(),
             )
         )
+    logger.debug(f"Finished processing response for user {user} in thread {thread.name}")  # NEW logging statement
+
+
+async def generate_chat35_completion_response(messages: List[Message], user) -> CompletionData:
+    inputs = [{"role": "assistant" if message.user == "Assistant" else "user", "content": message.text} for message in messages]
+    
+    logger.debug("Calling GPT-3.5 Turbo API with generated inputs")
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=inputs
+    )
+    
+    logger.debug("Received response from GPT-3.5 Turbo API")
+    response_data = CompletionData(
+        status=CompletionResult.OK,
+        reply_text=response['choices'][0]['message']['content'], # Change how reply text is assigned
+        status_text=None
+    )
+
+    # Log the OpenAI API response
+    logger.debug(f"OpenAI API response: {response}")
+    logger.debug(f"Model: {response['model']}")
+
+    return response_data

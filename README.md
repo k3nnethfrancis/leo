@@ -1,9 +1,6 @@
 # Project LION Discord Bot
 
-Fork of OpenAI Discord bot written in Python that uses the [completions API](https://beta.openai.com/docs/api-reference/completions) to have conversations and ask questions over documents with gpt-3. Uses the the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages. 
-
-This bot uses the [OpenAI Python Library](https://github.com/openai/openai-python), [discord.py](https://discordpy.readthedocs.io/), and langchain.
-
+Forked the OpenAI Discord bot and upgraded the model to gpt-3.5-turbo, added questions over documents feature, experimenting on onboarding project recommender feature. Also uses the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages. 
 
 # Features
 ### Chat
@@ -12,7 +9,16 @@ This bot uses the [OpenAI Python Library](https://github.com/openai/openai-pytho
 - The entire thread will be passed to the model for each request, so the model will remember previous messages in the thread
 - when the context limit is reached, or a max message count is reached in the thread, bot will close the thread
 - you can customize the bot instructions by modifying `config.yaml`
-- you can change the model, the hardcoded value is `text-davinci-003`
+- you can change the model, the hardcoded value is `gpt-3.5-turbo`
+
+### Q&A
+- `/ask` initializes a document search Q&A query
+- The model will search over documents in the text/ folder
+- The users question will be displayed in the models response
+- You can add any .txt documents to the text/ folder for the model to use them in its search
+
+### Onboaording project recommender [experimental]
+- Leo recommends projects to new users based of their introduction message and your DAOs documents
 
 ### Q&A
 - `/ask` initializes a document search Q&A query
@@ -31,6 +37,7 @@ This bot uses the [OpenAI Python Library](https://github.com/openai/openai-pytho
     - Enable "Message Content Intent" under "Privileged Gateway Intents"
 1. Go to the OAuth2 tab, copy your "Client ID", and fill in `DISCORD_CLIENT_ID`
 1. Copy the ID the server you want to allow your bot to be used in by right clicking the server icon and clicking "Copy ID". Fill in `ALLOWED_SERVER_IDS`. If you want to allow multiple servers, separate the IDs by "," like `server_id_1,server_id_2`
+1. Copy the target channel ID for your introductions channel and fill it in 'TARGET_CHANNEL_ID' for the onboarding bot to work [currently only executes once at runtime]
 
 1. Add your documents as .txt files to the text/ folder.
 

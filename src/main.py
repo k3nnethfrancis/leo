@@ -1,8 +1,15 @@
+import os
+import asyncio
+import logging
 import openai
 import discord
 from discord import Message as DiscordMessage
-import logging
-from src.base import Message, Conversation
+from typing import List, Tuple
+
+from src.base import (
+    Message,
+    Conversation
+)
 from src.constants import (
     BOT_INVITE_URL,
     DISCORD_BOT_TOKEN,
@@ -10,40 +17,94 @@ from src.constants import (
     ACTIVATE_THREAD_PREFX,
     MAX_THREAD_MESSAGES,
     SECONDS_DELAY_RECEIVING_MSG,
+    OPENAI_API_KEY,
+    TARGET_CHANNEL_ID
 )
-
-import logging
-logging.basicConfig(level=logging.INFO)  # Set logging level to INFO
-
-import asyncio
 from src.utils import (
     logger,
     should_block,
     close_thread,
     is_last_message_stale,
     discord_message_to_message,
+    save_messages_to_file
+)
+from src.qa import (
+    generate_qa_completion_response,
+    process_qa_response
 )
 from src import completion
-from src.qa import generate_qa_completion_response, process_qa_response
-from src.completion import generate_completion_response, process_response
+from src.completion import (
+    generate_completion_response,
+    process_response,
+    generate_chat35_completion_response
+)
 from src.moderation import (
     moderate_message,
     send_moderation_blocked_message,
     send_moderation_flagged_message,
 )
+from src.onboard import (
+    is_intro,
+    get_dynamic_prompt,
+    ProjectRecommender
+)
 
-# Set up Discord Intents and enable access to message content
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)  # Set logging level to DEBUG
+
+# Initialize the OpenAI instance
+from langchain import OpenAI
+llm = OpenAI(openai_api_key=OPENAI_API_KEY)
+
+# Create a ProjectRecommender object
+recommender = ProjectRecommender()
+
+# Set the intents to include the message content
 intents = discord.Intents.default()
 intents.message_content = True
 
 # Instantiate a discord.Client object with the specified intents
 client = discord.Client(intents=intents)
+
 # Instantiate a CommandTree object that will hold the bot's command hierarchy
 tree = discord.app_commands.CommandTree(client)
 
 # Event triggered when the bot starts and logs in
 @client.event
 async def on_ready():
+    
+    ### Message logging ###
+    async def fetch_and_save_messages(client: discord.Client, limit: int = 100) -> List[Tuple[str, str, int]]:
+        # Fetch the last 100 messages from the desired channel
+        channel = await client.fetch_channel(TARGET_CHANNEL_ID)
+        
+        messages = []
+        # Iterate through the channel history and add the messages to the list
+        async for message in channel.history(limit=limit):
+            messages.append((message.content, message.author.name, message.id))
+
+        # Save the messages to a file in the msg_log folder with the file name as the channel ID
+        save_messages_to_file(messages, folder="msg_log", filename=f"{TARGET_CHANNEL_ID}")
+
+        return messages
+
+    # Fetch the last 10 messages
+    messages = await fetch_and_save_messages(client, limit=10)
+
+    target_channel = await client.fetch_channel(TARGET_CHANNEL_ID)
+
+    for content, author_name, message_id in messages:
+        if is_intro(llm, content):
+            # Get recommended projects
+            recommended_projects = recommender.get_relevant_projects(content)
+            recommended_projects_str = "\n".join(recommended_projects)
+
+            # Fetch the original message using the message ID
+            original_message = await target_channel.fetch_message(message_id)
+
+            # Send a true reply to the original message ONLY if it's an intro
+            await original_message.reply(recommended_projects_str)
+    
     # Log bot's username and invite URL
     logger.info(f"We have logged in as {client.user}. Invite URL: {BOT_INVITE_URL}")
     # Set the bot's name and initialize an empty list to store example conversations
@@ -53,13 +114,16 @@ async def on_ready():
     for c in EXAMPLE_CONVOS:
         messages = []
         for m in c.messages:
-            if m.user == "Lenard":
+            #if m.user == "Lenard":
+            if m.user == "leo-bot":
                 messages.append(Message(user=client.user.name, text=m.text))
             else:
                 messages.append(m)
         completion.MY_BOT_EXAMPLE_CONVOS.append(Conversation(messages=messages))
     # Sync the CommandTree with the bot's commands
     await tree.sync()
+
+### CHAT ###
 
 # Register a chat command with the bot
 # /chat message:
@@ -156,6 +220,99 @@ async def chat_command(int: discord.Interaction, message: str):
         await int.response.send_message(
             f"Failed to start chat {str(e)}", ephemeral=True
         )
+
+## Chat w/ GPT-3.5-Turbo ##
+@tree.command(name="chat35", description="Create a new thread for conversation with GPT-3.5 Turbo")
+@discord.app_commands.checks.has_permissions(send_messages=True)
+@discord.app_commands.checks.has_permissions(view_channel=True)
+@discord.app_commands.checks.bot_has_permissions(send_messages=True)
+@discord.app_commands.checks.bot_has_permissions(view_channel=True)
+@discord.app_commands.checks.bot_has_permissions(manage_threads=True)
+async def chat35_command(int: discord.Interaction, message: str):
+    try:
+        # only support creating thread in text channel
+        if not isinstance(int.channel, discord.TextChannel):
+            return
+
+        # block servers not in allow list
+        if should_block(guild=int.guild):
+            return
+        
+        # Get the user who issued the chat command
+        user = int.user
+        logger.info(f"Chat35 command by {user} {message[:20]}")
+        try:
+            # moderate the message
+            flagged_str, blocked_str = moderate_message(message=message, user=user)
+            await send_moderation_blocked_message(
+                guild=int.guild,
+                user=user,
+                blocked_str=blocked_str,
+                message=message,
+            )
+            # If the message is blocked by moderation, notify the user and return
+            if len(blocked_str) > 0:
+                # message was blocked
+                await int.response.send_message(
+                    f"Your prompt has been blocked by moderation.\n{message}",
+                    ephemeral=True,
+                )
+                return
+            
+            # Create an embed for the chat command and add user's name and message
+            embed = discord.Embed(
+                description=f"<@{user.id}> wants to chat! 🤖💬",
+                color=discord.Color.green(),
+            )
+            embed.add_field(name=user.name, value=message)
+
+            # If the message is flagged by moderation, add a warning to the embed
+            if len(flagged_str) > 0:
+                # message was flagged
+                embed.color = discord.Color.yellow()
+                embed.title = "⚠️ This prompt was flagged by moderation."
+            
+            # Send the embed as a response
+            await int.response.send_message(embed=embed)
+            response = await int.original_response()
+
+            # Send a notification if the message was flagged by moderation
+            await send_moderation_flagged_message(
+                guild=int.guild,
+                user=user,
+                flagged_str=flagged_str,
+                message=message,
+                url=response.jump_url,
+            )
+        except Exception as e:
+            logger.exception(e)
+            await int.response.send_message(
+                f"Failed to start chat {str(e)}", ephemeral=True
+            )
+            return
+
+        # create the thread for the conversation
+        thread = await response.create_thread(
+            name=f"{ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
+            slowmode_delay=1,
+            reason="gpt-bot",
+            auto_archive_duration=60,
+        )
+        # Show the bot is typing in the thread
+        async with thread.typing():
+            logger.debug("Generating response using GPT-3.5 Turbo")
+            # fetch completion
+            messages = [Message(user=user.name, text=message)]
+            response_data = await generate_chat35_completion_response(messages=messages, user=user)
+            logger.debug("Response generated by GPT-3.5 Turbo")
+            # send the result
+            await process_response(
+                user=user, thread=thread, response_data=response_data
+            )
+    except Exception as e:
+        logger.exception(e)
+        await int.edit_original_response(content="An error occurred while using GPT-3.5 Turbo: {}".format(e))
+
 
 ## ASK ##
 @tree.command(name="ask", description="Ask a question to the bot.")

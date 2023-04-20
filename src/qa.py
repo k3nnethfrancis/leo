@@ -4,9 +4,6 @@
 import os
 import asyncio
 import logging
-import argparse
-import faiss
-import pickle
 import discord
 from langchain.llms import OpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
@@ -16,13 +13,6 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains import RetrievalQA
 from src.completion import CompletionResult, CompletionData
 from src.constants import OPENAI_API_KEY
-
-# # Load our LangChain index created with utils.ingest.py
-# # not needed right now, but in future when connected directly to a DB
-# index = faiss.read_index("docs.index")
-# # open our pickle file
-# with open("faiss_store.pkl", "rb") as f:
-#     store = pickle.load(f)
 
 #initialize the logger
 logger = logging.getLogger(__name__)
@@ -43,7 +33,7 @@ def load_documents(directory):
 # Process the documents into a Chroma index
 def process_documents(documents):
     logger.info("Processing documents...")
-    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
     texts = text_splitter.split_documents(documents)
     embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
     docsearch = Chroma.from_documents(texts, embeddings)

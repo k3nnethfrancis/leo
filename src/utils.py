@@ -1,3 +1,4 @@
+import os
 from src.constants import (
     ALLOWED_SERVER_IDS,
 )
@@ -6,11 +7,20 @@ import logging
 logger = logging.getLogger(__name__)
 from src.base import Message
 from discord import Message as DiscordMessage
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import discord
 
 from src.constants import MAX_CHARS_PER_REPLY_MSG, INACTIVATE_THREAD_PREFIX
 
+
+
+def save_messages_to_file(messages: List[Tuple[str, str, int]], folder: str, filename: str) -> None:
+    os.makedirs(folder, exist_ok=True)
+
+    file_path = f"{folder}/{filename}.txt"
+    with open(file_path, "w", encoding="utf-8") as f:
+        for text, author, message_id in messages:
+            f.write(f"{author}: {text}\n")
 
 def discord_message_to_message(message: DiscordMessage) -> Optional[Message]:
     if (
