@@ -20,12 +20,6 @@ Forked the OpenAI Discord bot and upgraded the model to gpt-3.5-turbo, added que
 ### Onboaording project recommender [experimental]
 - Leo recommends projects to new users based of their introduction message and your DAOs documents
 
-### Q&A
-- `/ask` initializes a document search Q&A query
-- The model will search over documents in the text/ folder
-- The users question will be displayed in the models response
-- You can add any .txt documents to the text/ folder for the model to use them in its search
-
 # Setup
 
 1. Copy `.env.example` to `.env` and start filling in the values as detailed below
@@ -37,7 +31,7 @@ Forked the OpenAI Discord bot and upgraded the model to gpt-3.5-turbo, added que
     - Enable "Message Content Intent" under "Privileged Gateway Intents"
 1. Go to the OAuth2 tab, copy your "Client ID", and fill in `DISCORD_CLIENT_ID`
 1. Copy the ID the server you want to allow your bot to be used in by right clicking the server icon and clicking "Copy ID". Fill in `ALLOWED_SERVER_IDS`. If you want to allow multiple servers, separate the IDs by "," like `server_id_1,server_id_2`
-1. Copy the target channel ID for your introductions channel and fill it in 'TARGET_CHANNEL_ID' for the onboarding bot to work [currently only executes once at runtime]
+1. Copy the target channel ID for your introductions channel and fill it in `TARGET_CHANNEL_ID` for the onboarding bot to work [currently only executes once at runtime]
 
 1. Add your documents as .txt files to the text/ folder.
 
