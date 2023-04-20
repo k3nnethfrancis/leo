@@ -15,7 +15,7 @@ faiss_store.pkl
 processed/*
 log/*
 msg_log/*
-text/*
+text/*.txt
 
 # config
 data/cfg/*
