@@ -1,5 +1,6 @@
 # python
 __pycache__/
+.ipynb_checkpoints
 
 # environment and IDE
 */.DS_Store
@@ -7,16 +8,17 @@ __pycache__/
 .github
 *.env
 
+# testing files
+.ipynb
+
 #EmbeddingsDB, files and folders
 .chroma/index/
 chroma_logs.log
 docs.index
 faiss_store.pkl
 processed/*
-log/*
+log/
 msg_log/*
-text/*
-.txt
 
 # config
 data/cfg/*
