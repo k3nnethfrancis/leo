@@ -1,8 +1,8 @@
 # Project LION Discord Bot
 
-Fork of OpenAI Discord bot written in Python that uses the [completions API](https://beta.openai.com/docs/api-reference/completions) to have conversations and ask questions over documents with gpt-3. Uses the the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages. 
+Fork of OpenAI Discord bot written in Python that uses the [completions API](https://beta.openai.com/docs/api-reference/completions) to have conversations and ask questions over documents with gpt-3.5-turbo. Uses the the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages. 
 
-This bot uses the [OpenAI Python Library](https://github.com/openai/openai-python), [discord.py](https://discordpy.readthedocs.io/), and langchain.
+This bot uses the [OpenAI Python Library](https://github.com/openai/openai-python), [discord.py](https://discordpy.readthedocs.io/), and [LangChain](https://python.langchain.com/).
 
 
 # Features
@@ -12,7 +12,7 @@ This bot uses the [OpenAI Python Library](https://github.com/openai/openai-pytho
 - The entire thread will be passed to the model for each request, so the model will remember previous messages in the thread
 - when the context limit is reached, or a max message count is reached in the thread, bot will close the thread
 - you can customize the bot instructions by modifying `config.yaml`
-- you can change the model, the hardcoded value is `text-davinci-003`
+- you can change the model, the hardcoded value is `gpt-3.5-turbo`
 
 ### Q&A
 - `/ask` initializes a document search Q&A query

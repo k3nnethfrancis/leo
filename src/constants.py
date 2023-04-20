@@ -27,6 +27,7 @@ EXAMPLE_CONVOS = CONFIG.example_conversations
 DISCORD_BOT_TOKEN = os.environ["DISCORD_BOT_TOKEN"]
 DISCORD_CLIENT_ID = os.environ["DISCORD_CLIENT_ID"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+TARGET_CHANNEL_ID = os.environ["TARGET_CHENNEL_ID"] # intro channel id for onboarding bot
 
 # Initialize an empty list to store allowed server IDs
 ALLOWED_SERVER_IDS: List[int] = []
@@ -35,9 +36,6 @@ server_ids = os.environ["ALLOWED_SERVER_IDS"].split(",")
 # Loop through the server IDs and append each as an integer to the allowed_server_ids list
 for s in server_ids:
     ALLOWED_SERVER_IDS.append(int(s))
-
-# Replace CHANNEL_ID with the ID of the channel you want to fetch the messages from
-TARGET_CHANNEL_ID = 1094758337226215524 # intro channel id from my personal dev server
 
 # Create a dictionary to map server IDs to their corresponding moderation channels
 SERVER_TO_MODERATION_CHANNEL: Dict[int, int] = {}

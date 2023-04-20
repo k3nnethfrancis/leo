@@ -1,21 +1,22 @@
-
-
 # python
 __pycache__/
 
-# IDE
+# environment and IDE
 */.DS_Store
 .DS_Store
+.github
+*.env
 
-# environment
-
-# folders
-processed/*
-log/*
-
-#EmbeddingsDB files and folders
+#EmbeddingsDB, files and folders
 .chroma/index/
 chroma_logs.log
 docs.index
 faiss_store.pkl
-*.env
+processed/*
+log/*
+msg_log/*
+text/*
+
+# config
+data/cfg/*
+data/cfg/.*
