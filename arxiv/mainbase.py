@@ -37,34 +37,33 @@ from src import completion
 from src.completion import (
     #generate_completion_response,
     process_response,
-    generate_chat_completion_response
+    generate_chat35_completion_response
 )
 from src.moderation import (
     moderate_message,
     send_moderation_blocked_message,
     send_moderation_flagged_message,
 )
-#test search and onboard
 # from src.onboard import (
 #     is_intro,
 #     get_dynamic_prompt,
 #     ProjectRecommender
 # )
-# from src.search import (
-#     BaseRetriever,
-#     process_search_response
-# )
+from src.search import (
+    BaseRetriever,
+    process_search_response
+)
 
-# # test doc loaders
-# from src.docloader import (
-#     get_loaded_documents,
-#     get_docsearch_instance, 
-#     get_llm_instance
-# )
-# # Get the llm, documents, and docsearch instances
-# llm = get_llm_instance()
-# documents = get_loaded_documents()
-# docsearch = get_docsearch_instance(documents)
+# test doc loaders
+from src.docloader import (
+    get_loaded_documents,
+    get_docsearch_instance, 
+    get_llm_instance
+)
+# Get the llm, documents, and docsearch instances
+llm = get_llm_instance()
+documents = get_loaded_documents()
+docsearch = get_docsearch_instance(documents)
 
 # Set up logging
 # logging.basicConfig(level=logging.DEBUG)  # Set logging level to DEBUG
@@ -80,6 +79,9 @@ logger.addHandler(console_handler)
 
 # Initialize the langchain OpenAI instance
 # llm = OpenAI(openai_api_key=OPENAI_API_KEY)
+
+# # Create a ProjectRecommender object
+# recommender = ProjectRecommender()
 
 # Set the intents to include the message content
 intents = discord.Intents.default()
@@ -112,7 +114,105 @@ async def on_ready():
     # Sync the CommandTree with the bot's commands
     await tree.sync()
 
-## Chat w/ GPT-4 / GPT35turbp##
+### CHAT ###
+
+# Register a chat command with the bot
+# /chat message:
+# @tree.command(name="chat", description="Create a new thread for conversation")
+# # Define permissions for the user and the bot
+# @discord.app_commands.checks.has_permissions(send_messages=True)
+# @discord.app_commands.checks.has_permissions(view_channel=True)
+# @discord.app_commands.checks.bot_has_permissions(send_messages=True)
+# @discord.app_commands.checks.bot_has_permissions(view_channel=True)
+# @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
+# async def chat_command(int: discord.Interaction, message: str):
+#     try:
+#         # only support creating thread in text channel
+#         if not isinstance(int.channel, discord.TextChannel):
+#             return
+
+#         # block servers not in allow list
+#         if should_block(guild=int.guild):
+#             return
+        
+#         # Get the user who issued the chat command
+#         user = int.user
+#         logger.info(f"Chat command by {user} {message[:20]}")
+#         try:
+#             # moderate the message
+#             flagged_str, blocked_str = moderate_message(message=message, user=user)
+#             await send_moderation_blocked_message(
+#                 guild=int.guild,
+#                 user=user,
+#                 blocked_str=blocked_str,
+#                 message=message,
+#             )
+#             # If the message is blocked by moderation, notify the user and return
+#             if len(blocked_str) > 0:
+#                 # message was blocked
+#                 await int.response.send_message(
+#                     f"Your prompt has been blocked by moderation.\n{message}",
+#                     ephemeral=True,
+#                 )
+#                 return
+            
+#             # Create an embed for the chat command and add user's name and message
+#             embed = discord.Embed(
+#                 description=f"<@{user.id}> wants to chat! 🤖💬",
+#                 color=discord.Color.green(),
+#             )
+#             embed.add_field(name=user.name, value=message)
+
+#             # If the message is flagged by moderation, add a warning to the embed
+#             if len(flagged_str) > 0:
+#                 # message was flagged
+#                 embed.color = discord.Color.yellow()
+#                 embed.title = "⚠️ This prompt was flagged by moderation."
+            
+#             # Send the embed as a response
+#             await int.response.send_message(embed=embed)
+#             response = await int.original_response()
+
+#             # Send a notification if the message was flagged by moderation
+#             await send_moderation_flagged_message(
+#                 guild=int.guild,
+#                 user=user,
+#                 flagged_str=flagged_str,
+#                 message=message,
+#                 url=response.jump_url,
+#             )
+#         except Exception as e:
+#             logger.exception(e)
+#             await int.response.send_message(
+#                 f"Failed to start chat {str(e)}", ephemeral=True
+#             )
+#             return
+
+#         # create the thread for the conversation
+#         thread = await response.create_thread(
+#             name=f"{ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
+#             slowmode_delay=1,
+#             reason="gpt-bot",
+#             auto_archive_duration=60,
+#         )
+#         # Show the bot is typing in the thread
+#         async with thread.typing():
+#             # fetch completion
+#             messages = [Message(user=user.name, text=message)]
+#             response_data = await generate_completion_response(
+#                 messages=messages, user=user
+#             )
+#             # send the result
+#             await process_response(
+#                 user=user, thread=thread, response_data=response_data
+#             )
+#     except Exception as e:
+#         logger.exception(e)
+#         await int.response.send_message(
+#             f"Failed to start chat {str(e)}", ephemeral=True
+#         )
+
+## Chat w/ GPT-4 ##
 @tree.command(name="chat", description="Create a new thread for conversation with GPT-4 (whatever is set in completions.py)")
 @discord.app_commands.checks.has_permissions(send_messages=True)
 @discord.app_commands.checks.has_permissions(view_channel=True)
@@ -194,7 +294,7 @@ async def chat_command(int: discord.Interaction, message: str):
             logger.debug("Generating response using GPT-4")
             # fetch completion
             messages = [Message(user=user.name, text=message)]
-            response_data = await generate_chat_completion_response(messages=messages, user=user)
+            response_data = await generate_chat35_completion_response(messages=messages, user=user)
             logger.debug("Response generated by GPT-4")
             # send the result
             await process_response(
@@ -217,8 +317,7 @@ async def ask_command(int: discord.Interaction, question: str):
 
         # Fetch the QA response
         #response_data = await generate_qa_completion_response(question=question, user=user)
-        response_data = await generate_qa_completion_response(query=[Message(user=str(user), text=str(question))], user=user)
-
+        response_data = await generate_qa_completion_response(question=question, user=user, llm=llm, documents=documents, docsearch=docsearch)
 
 
         # Process and send the response
@@ -237,6 +336,53 @@ async def ask_command(int: discord.Interaction, question: str):
         except Exception as e2:
             logger.exception(e2)
             await int.followup.send(content=f"Failed to answer question. {str(e)}", ephemeral=True)
+
+# ## ONBOARD ##
+# @tree.command(name="onboard", description="Read intro messages from target channel and recommend projects to users")
+# async def onboard_users_command(int: discord.Interaction):
+#     # Defer the response to prevent the interaction from expiring
+#     await int.response.defer(ephemeral=True)
+
+#     ### Message logging ###
+#     async def fetch_and_save_messages(client: discord.Client, limit: int = 10) -> List[Tuple[str, str, int]]:
+#         # Fetch the last 100 messages from the desired channel
+#         channel = await client.fetch_channel(TARGET_CHANNEL_ID)
+        
+#         messages = []
+#         # Iterate through the channel history and add the messages to the list
+#         async for message in channel.history(limit=limit):
+#             messages.append((message.content, message.author.name, message.id))
+
+#         # Save the messages to a file in the msg_log folder with the file name as the channel ID
+#         save_messages_to_file(messages, folder="msg_log", filename=f"{TARGET_CHANNEL_ID}")
+
+#         return messages
+    
+#     try:
+#         # Fetch the last `limit` messages
+#         messages = await fetch_and_save_messages(client, limit=10)
+        
+#         target_channel = await client.fetch_channel(TARGET_CHANNEL_ID)
+    
+#         for content, author_name, message_id in messages:
+#             if is_intro(llm, content):
+#                 # Get recommended projects
+#                 recommended_projects = recommender.get_relevant_projects(content)
+#                 recommended_projects_str = "\n".join(recommended_projects)
+    
+#                 # Find the original message using the message ID
+#                 original_message = await target_channel.fetch_message(message_id)
+    
+#                 # Send a reply to the original message ONLY if it's an intro
+#                 await original_message.reply(recommended_projects_str)
+        
+#         # Edit the original deferred response
+#         await int.edit_original_response(content=f"Processed {len(messages)} recent messages for onboarding.")
+
+#     except Exception as e:
+#         logger.exception("Error in onboard_users command:", e)
+#         await int.edit_original_response(content=f"Failed to process messages for onboarding. {str(e)}")
+
 
 #### THREAD HANDLING ####
 # calls for each message
@@ -347,7 +493,7 @@ async def on_message(message: DiscordMessage):
 
         # generate the response
         async with thread.typing():
-            response_data = await generate_chat_completion_response(
+            response_data = await generate_chat35_completion_response(
                 messages=channel_messages, user=message.author
             )
 

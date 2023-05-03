@@ -54,7 +54,7 @@ def get_dynamic_prompt() -> FewShotPromptTemplate:
     return dynamic_prompt
 
 # Initialize the OpenAI instance
-llm = OpenAI(openai_api_key=OPENAI_API_KEY)
+# llm = OpenAI(openai_api_key=OPENAI_API_KEY)
 
 def is_intro(model, message: str) -> bool:
     prompt = get_dynamic_prompt().format(input=message)
@@ -78,9 +78,9 @@ class BaseRetriever(ABC):
         Returns:
             List of relevant documents
         """
-path = LEO_DIR + r'/text/projectText/'
-loader = DirectoryLoader(path, loader_cls=TextLoader)
-index = VectorstoreIndexCreator().from_loaders([loader])
+# path = LEO_DIR + r'/text/projectText/'
+# loader = DirectoryLoader(path, loader_cls=TextLoader)
+# index = VectorstoreIndexCreator().from_loaders([loader])
 
 def intro2query(intro: str) -> str:
     return f"What are one or two projects that might be interesting for a user with the following intro: {intro}? \nPlease exlpained in a helpful tone."
