@@ -11,7 +11,7 @@ from langchain.document_loaders import DirectoryLoader
 from langchain.vectorstores import Chroma
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains import RetrievalQA
-from src.completion import CompletionResult, CompletionData
+#from src.completion import CompletionResult, CompletionData
 from src.constants import OPENAI_API_KEY
 # Description: This file contains the code for generating a response from the OpenAI API
 # Import necessary libraries and modules: enum, dataclass, openai, various functions, and constants from other files.
@@ -73,26 +73,6 @@ logger = logging.getLogger(__name__)
 LEO_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 # doc_dir = LEO_DIR+r'/text'
 
-
-# # Load the documents and components needed for the QA system
-# def load_documents(directory):
-#     logger.info("Loading documents...")
-#     loader = DirectoryLoader(directory, glob='**/*.txt')
-#     documents = loader.load()
-#     logger.info("Documents loaded.")
-#     return documents
-
-# # Process the documents into a Chroma index
-# def process_documents(documents):
-#     logger.info("Processing documents...")
-#     text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
-#     texts = text_splitter.split_documents(documents)
-#     embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-#     docsearch = Chroma.from_documents(texts, embeddings)
-#     logger.info("Documents processed.")
-#     return docsearch
-
-
 from src.base import BaseRetriever
 
 class CustomRetriever(BaseRetriever):
@@ -117,59 +97,15 @@ async def generate_qa_completion_response(query: List[str]
             retriever.search,
             query=inputs_str,
         ))
-
+    response_text = response[0]  # Get the first element from the 'response' list
     logger.debug("Received response from OpenAI API")
     response_data = CompletionData(
         status=CompletionResult.OK,
-        reply_text=response[0],
+        reply_text=response_text,
         status_text=None
     )
     return response_data
 
-
-
-
-
-
-
-
-# # Load the QA chain
-# def load_qa_chain(llm, docsearch, chain_type="stuff"):
-#     logger.info("Loading QA chain...")
-#     qa = retriever.search(llm=llm, chain_type=chain_type, retriever=docsearch.as_retriever())
-#     logger.info("QA chain loaded.")
-#     return qa
-
-# # Ask a question
-# async def ask_question(qa, question):
-#     logger.info(f"Asking question: {question}")
-#     answer = qa.run(question)
-#     logger.info(f"Received answer: {answer}")
-#     return answer
-
-
-# # Use the imported functions to get the instances for documents, docsearch, and llm
-# documents = get_loaded_documents()
-# docsearch = get_docsearch_instance(documents)
-# llm = get_llm_instance()
-
-# store the documents and components needed for the QA system
-#documents = load_documents(doc_dir)
-#docsearch = process_documents(documents)
-# Initialize the OpenAI instance
-#llm = OpenAI(openai_api_key=OPENAI_API_KEY)
-# qa = load_qa_chain(llm, docsearch)
-
-# ### generate_qa_completion_response now uses the ask_question function
-# async def generate_qa_completion_response(
-#         question: str, user: str, llm: OpenAI, documents, docsearch
-#         ) -> CompletionData:
-#     logger.info("Generating QA completion response...")
-#     answer = await ask_question(qa, question)
-#     status_code = CompletionResult.OK
-#     completion_data = CompletionData(status=status_code, reply_text=answer, status_text="OK")
-#     logger.info("QA completion response generated.")
-#     return completion_data
 
 ### Process the response from discord handling
 async def process_qa_response(user: str, interaction: discord.Interaction, question: str, response_data: CompletionData):

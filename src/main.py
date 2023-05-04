@@ -44,27 +44,12 @@ from src.moderation import (
     send_moderation_blocked_message,
     send_moderation_flagged_message,
 )
-#test search and onboard
-# from src.onboard import (
-#     is_intro,
-#     get_dynamic_prompt,
-#     ProjectRecommender
-# )
-# from src.search import (
-#     BaseRetriever,
-#     process_search_response
-# )
-
-# # test doc loaders
-# from src.docloader import (
-#     get_loaded_documents,
-#     get_docsearch_instance, 
-#     get_llm_instance
-# )
-# # Get the llm, documents, and docsearch instances
-# llm = get_llm_instance()
-# documents = get_loaded_documents()
-# docsearch = get_docsearch_instance(documents)
+from src.onboard import (
+    OnboardPromptTemplate,
+    IntroDetector,
+    generate_onboard_completion_response,
+    process_onboard_response,
+)
 
 # Set up logging
 # logging.basicConfig(level=logging.DEBUG)  # Set logging level to DEBUG
@@ -219,8 +204,6 @@ async def ask_command(int: discord.Interaction, question: str):
         #response_data = await generate_qa_completion_response(question=question, user=user)
         response_data = await generate_qa_completion_response(query=[Message(user=str(user), text=str(question))], user=user)
 
-
-
         # Process and send the response
         await process_qa_response(user=user, interaction=int, question=question, response_data=response_data)
        
@@ -237,6 +220,64 @@ async def ask_command(int: discord.Interaction, question: str):
         except Exception as e2:
             logger.exception(e2)
             await int.followup.send(content=f"Failed to answer question. {str(e)}", ephemeral=True)
+
+## ONBOARD ##
+@tree.command(name="onboard", description="Read intro messages from target channel and recommend projects to users")
+async def onboard_users_command(int: discord.Interaction):
+    # Defer the response to prevent the interaction from expiring
+    await int.response.defer(ephemeral=True)
+
+    ### Message logging ###
+    async def fetch_and_save_messages(client: discord.Client, limit: int = 10) -> List[Tuple[str, str, int]]:
+        # Fetch the last 100 messages from the desired channel
+        channel = await client.fetch_channel(TARGET_CHANNEL_ID)
+        
+        messages = []
+        # Iterate through the channel history and add the messages to the list
+        async for message in channel.history(limit=limit):
+            messages.append((message.content, message.author.name, message.id))
+
+        # Save the messages to a file in the msg_log folder with the file name as the channel ID
+        save_messages_to_file(messages, folder="msg_log", filename=f"{TARGET_CHANNEL_ID}")
+
+        return messages
+    #create intro detector object
+    intro_detector = IntroDetector()
+    try:
+        # Fetch the last `limit` messages
+        messages = await fetch_and_save_messages(client, limit=10)
+        
+        target_channel = await client.fetch_channel(TARGET_CHANNEL_ID)
+    
+        for content, author_name, message_id in messages:
+            if intro_detector.is_intro(message=content):
+                # Get the message object using the message ID
+                original_message = await target_channel.fetch_message(message_id)
+
+                # Get the user object (author) from the message object
+                author = original_message.author
+
+                # Get recommended projects
+                recommended_projects = await generate_onboard_completion_response(intro=content, user=author_name)
+
+                # Process and send the response
+                await process_onboard_response(user=author, interaction=int, message_id=message_id, response_data=recommended_projects)
+
+                # # Find the original message using the message ID
+                # original_message = await target_channel.fetch_message(message_id)
+    
+                # # Send a reply to the original message ONLY if it's an intro
+                # await original_message.reply(recommended_projects)
+        
+        # Edit the original deferred response
+        await int.edit_original_response(content=f"Processed {len(messages)} recent messages for onboarding.")
+
+    except Exception as e:
+        logger.exception("Error in onboard_users_command: %s", e)
+        await int.edit_original_response(content=f"Failed to process messages for onboarding. {str(e)}")
+
+
+
 
 #### THREAD HANDLING ####
 # calls for each message
