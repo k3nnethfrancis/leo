@@ -27,7 +27,8 @@ from src.utils import (
     close_thread,
     is_last_message_stale,
     discord_message_to_message,
-    save_messages_to_file
+    save_messages_to_file,
+    has_any_role
 )
 # from src.qa import (
 #     generate_qa_completion_response,
@@ -81,6 +82,7 @@ intents.message_content = True
 
 # Instantiate a discord.Client object with the specified intents
 client = discord.Client(intents=intents)
+
 
 # Instantiate a CommandTree object that will hold the bot's command hierarchy
 tree = discord.app_commands.CommandTree(client)
@@ -233,11 +235,21 @@ async def ask_command(int: discord.Interaction, question: str):
 ## ONBOARD ##
 @tree.command(name="onboard", description="Read intro messages from target channel and recommend projects to users")
 async def onboard_users_command(int: discord.Interaction, limit: int = 10):
+    # role permissions
+    allowed_roles = ["leo-admin"]  # Modify this list according to the roles you want to allow
+    if not has_any_role(int.user, allowed_roles):
+        await int.response.send_message(
+            f"{int.user.mention}, you don't have the required role to use this command.",
+            ephemeral=True,
+        )
+        return
+    
     # Defer the response to prevent the interaction from expiring
     await int.response.defer(ephemeral=True)
 
     # Message logging
     async def fetch_and_save_messages(client: discord.Client, limit=limit) -> List[Tuple[str, str, int]]:
+        
         # Fetch the last 100 messages from the desired channel
         channel = await client.fetch_channel(TARGET_CHANNEL_ID)
         
