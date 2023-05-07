@@ -11,8 +11,59 @@ from langchain.document_loaders import DirectoryLoader
 from langchain.vectorstores import Chroma
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains import RetrievalQA
-from src.completion import CompletionResult, CompletionData
+#from src.completion import CompletionResult, CompletionData
 from src.constants import OPENAI_API_KEY
+# Description: This file contains the code for generating a response from the OpenAI API
+# Import necessary libraries and modules: enum, dataclass, openai, various functions, and constants from other files.
+from enum import Enum
+from dataclasses import dataclass
+import logging
+import openai
+from src.moderation import moderate_message
+from typing import Optional, List, Dict, Any
+from src.constants import (
+    BOT_INSTRUCTIONS,
+    BOT_NAME,
+    EXAMPLE_CONVOS,
+)
+import discord
+from src.base import Message, Prompt, Conversation
+from src.utils import split_into_shorter_messages, close_thread, logger
+from src.moderation import (
+    send_moderation_flagged_message,
+    send_moderation_blocked_message,
+)
+
+# for listening to intros
+# Put the ID of the Discord Channel you want the bot to respond to
+devserve_LEO_LISTEN_CHANNEL_ID = 1094758337226215524  # Replace with your desired Channel ID
+
+# Set bot name and example conversations from imported constants.
+MY_BOT_NAME = BOT_NAME
+MY_BOT_EXAMPLE_CONVOS = EXAMPLE_CONVOS
+
+# Create an Enum to represent different completion results a message can have: 
+#   # OK, too long, invalid request, other error, or whether it was flagged or blocked by moderation.
+class CompletionResult(Enum):
+    OK = 0
+    TOO_LONG = 1
+    INVALID_REQUEST = 2
+    OTHER_ERROR = 3
+    MODERATION_FLAGGED = 4
+    MODERATION_BLOCKED = 5
+
+# Define a new dataclass named CompletionData
+@dataclass
+class CompletionData:
+    status: CompletionResult
+    reply_text: Optional[str]
+    status_text: Optional[str]
+
+
+import functools
+import concurrent.futures
+import asyncio
+from typing import List
 
 #initialize the logger
 logger = logging.getLogger(__name__)
@@ -20,55 +71,41 @@ logger = logging.getLogger(__name__)
 # Load the documents and components needed for the QA system
 # get the parent directory of the current file
 LEO_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-doc_dir = LEO_DIR+r'/text'
+# doc_dir = LEO_DIR+r'/text'
 
-# Load the documents and components needed for the QA system
-def load_documents(directory):
-    logger.info("Loading documents...")
-    loader = DirectoryLoader(directory, glob='**/*.txt')
-    documents = loader.load()
-    logger.info("Documents loaded.")
-    return documents
+from src.base import BaseRetriever
 
-# Process the documents into a Chroma index
-def process_documents(documents):
-    logger.info("Processing documents...")
-    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
-    texts = text_splitter.split_documents(documents)
-    embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-    docsearch = Chroma.from_documents(texts, embeddings)
-    logger.info("Documents processed.")
-    return docsearch
+class CustomRetriever(BaseRetriever):
+    def search(self, query):
+        results = super().search(query)
+        return results
 
-# Load the QA chain
-def load_qa_chain(llm, chain_type="stuff"):
-    logger.info("Loading QA chain...")
-    qa = RetrievalQA.from_chain_type(llm=llm, chain_type=chain_type, retriever=docsearch.as_retriever())
-    logger.info("QA chain loaded.")
-    return qa
+# Create an instance of CustomRetriever
+retriever = CustomRetriever()
 
-# Ask a question to the bot
-def ask_question(qa, question):
-    logger.info(f"Asking question: {question}")
-    answer = qa.run(question)
-    logger.info(f"Received answer: {answer}")
-    return answer
 
-# store the documents and components needed for the QA system
-documents = load_documents(doc_dir)
-docsearch = process_documents(documents)
-# Initialize the OpenAI instance
-llm = OpenAI(openai_api_key=OPENAI_API_KEY)
-qa = load_qa_chain(llm)
+async def generate_qa_completion_response(query: List[str]
+, user: str) -> CompletionData:
+    inputs = ["{}: {}".format("Leo" if query.user == "Leo" else "user", query.text) for query in query]
+    inputs_str = "\n".join(inputs)
 
-### generate_qa_completion_response now uses the ask_question function
-async def generate_qa_completion_response(question: str, user: str) -> CompletionData:
-    logger.info("Generating QA completion response...")
-    answer = await asyncio.to_thread(ask_question, qa, question)
-    status_code = CompletionResult.OK
-    completion_data = CompletionData(status=status_code, reply_text=answer, status_text="OK")
-    logger.info("QA completion response generated.")
-    return completion_data
+    logger.debug("Deploying BaseRetriever to search for answer...")
+
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        response = await loop.run_in_executor(executor, functools.partial(
+            retriever.search,
+            query=inputs_str,
+        ))
+    response_text = response[0]  # Get the first element from the 'response' list
+    logger.debug("Received response from OpenAI API")
+    response_data = CompletionData(
+        status=CompletionResult.OK,
+        reply_text=response_text,
+        status_text=None
+    )
+    return response_data
+
 
 ### Process the response from discord handling
 async def process_qa_response(user: str, interaction: discord.Interaction, question: str, response_data: CompletionData):
