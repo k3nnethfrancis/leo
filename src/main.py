@@ -29,10 +29,10 @@ from src.utils import (
     discord_message_to_message,
     save_messages_to_file
 )
-from src.qa import (
-    generate_qa_completion_response,
-    process_qa_response
-)
+# from src.qa import (
+#     generate_qa_completion_response,
+#     process_qa_response
+# )
 from src import completion
 from src.completion import (
     #generate_completion_response,
@@ -42,13 +42,22 @@ from src.completion import (
 from src.moderation import (
     moderate_message,
     send_moderation_blocked_message,
-    send_moderation_flagged_message,
+    send_moderation_flagged_message
 )
-from src.onboard import (
+# from src.onboard import (
+#     OnboardPromptTemplate,
+#     IntroDetector,
+#     generate_onboard_completion_response,
+#     process_onboard_response,
+# )
+
+from src.search import (
+    generate_qa_completion_response,
+    process_qa_response,
     OnboardPromptTemplate,
     IntroDetector,
     generate_onboard_completion_response,
-    process_onboard_response,
+    process_onboard_response
 )
 
 # Set up logging
@@ -223,12 +232,12 @@ async def ask_command(int: discord.Interaction, question: str):
 
 ## ONBOARD ##
 @tree.command(name="onboard", description="Read intro messages from target channel and recommend projects to users")
-async def onboard_users_command(int: discord.Interaction):
+async def onboard_users_command(int: discord.Interaction, limit: int = 10):
     # Defer the response to prevent the interaction from expiring
     await int.response.defer(ephemeral=True)
 
-    ### Message logging ###
-    async def fetch_and_save_messages(client: discord.Client, limit: int = 10) -> List[Tuple[str, str, int]]:
+    # Message logging
+    async def fetch_and_save_messages(client: discord.Client, limit=limit) -> List[Tuple[str, str, int]]:
         # Fetch the last 100 messages from the desired channel
         channel = await client.fetch_channel(TARGET_CHANNEL_ID)
         
@@ -241,11 +250,25 @@ async def onboard_users_command(int: discord.Interaction):
         save_messages_to_file(messages, folder="msg_log", filename=f"{TARGET_CHANNEL_ID}")
 
         return messages
-    #create intro detector object
+    
+    # Create intro detector object
     intro_detector = IntroDetector()
+
+    # Check if the bot has replied to the message
+    async def has_bot_replied(target_channel, original_message):
+        bot_replied = False
+        # Fetch message history around the original_message
+        async for message in target_channel.history(around=original_message, limit=15):
+            # Check if the message is a reply and authored by the bot
+            if message.reference is not None and message.reference.message_id == original_message.id and message.author == int.guild.me:
+                bot_replied = True
+                break
+
+        return bot_replied
+    
     try:
         # Fetch the last `limit` messages
-        messages = await fetch_and_save_messages(client, limit=10)
+        messages = await fetch_and_save_messages(client, limit=limit)
         
         target_channel = await client.fetch_channel(TARGET_CHANNEL_ID)
     
@@ -253,6 +276,11 @@ async def onboard_users_command(int: discord.Interaction):
             if intro_detector.is_intro(message=content):
                 # Get the message object using the message ID
                 original_message = await target_channel.fetch_message(message_id)
+
+                # Check if the bot has already replied to this message
+                if await has_bot_replied(target_channel, original_message):
+                    logger.info(f"Skipping message {message_id} as the bot has already replied")
+                    continue
 
                 # Get the user object (author) from the message object
                 author = original_message.author
@@ -262,16 +290,11 @@ async def onboard_users_command(int: discord.Interaction):
 
                 # Process and send the response
                 await process_onboard_response(user=author, interaction=int, message_id=message_id, response_data=recommended_projects)
-
-                # # Find the original message using the message ID
-                # original_message = await target_channel.fetch_message(message_id)
-    
-                # # Send a reply to the original message ONLY if it's an intro
-                # await original_message.reply(recommended_projects)
         
         # Edit the original deferred response
         await int.edit_original_response(content=f"Processed {len(messages)} recent messages for onboarding.")
-
+    
+    # Catch any exceptions and log them
     except Exception as e:
         logger.exception("Error in onboard_users_command: %s", e)
         await int.edit_original_response(content=f"Failed to process messages for onboarding. {str(e)}")

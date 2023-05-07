@@ -11,12 +11,16 @@ __pycache__/
 # testing files
 notebooks/
 .ipynb
+# old versions
+arxiv/
+leoarxiv/
 
 #EmbeddingsDB, files and folders
 .chroma/index/
 chroma_logs.log
 docs.index
 faiss_store.pkl
+*.pkl
 processed/*
 log/
 msg_log/*
