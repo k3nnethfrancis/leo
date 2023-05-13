@@ -2,7 +2,7 @@
 
 # The code also imports the dataclass decorator from the dataclasses module, and the Optional and List types from the typing module. The dataclass decorator is used to automatically generate default implementations for common special methods, like __init__, __repr__, and others, based on class annotations.
 
-            
+import os
 from dataclasses import dataclass
 from typing import Optional, List
 
@@ -58,3 +58,94 @@ class Prompt:
             + [Message("System", "Current conversation:").render()]
             + [self.convo.render()],
         )
+
+
+# building the BaseRetriever class for docuemnt search (QA). /ask command
+
+from abc import ABC, abstractmethod
+from src.constants import OPENAI_API_KEY
+from langchain import OpenAI
+from langchain.schema import Document
+from langchain.indexes import VectorstoreIndexCreator
+from langchain.document_loaders import DirectoryLoader, TextLoader
+# get the parent directory of the current file
+LEO_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+# Initialize the OpenAI instance
+llm = OpenAI(openai_api_key=OPENAI_API_KEY)
+
+## OG implementation with chroma vectorstore
+class BaseRetriever(ABC):
+    def __init__(self):
+        path = LEO_DIR + r'/text/'
+        self.loader = DirectoryLoader(path, glob="**/*.txt", loader_cls=TextLoader)
+        self.index = VectorstoreIndexCreator().from_loaders([self.loader])
+    @abstractmethod
+    def search(self, query: str) -> List[Document]:
+        """Responds to a query about the users documents.
+            Args:
+                query: string to find relevant docs for
+            Returns:
+                response to query
+        """
+        result = self.index.query(query)
+        return result.split('\n')
+    
+
+
+
+# LIBS for FAISS and Testing multi-retrieval QA chains #
+# from langchain.chains.router import MultiRetrievalQAChain
+# from langchain.llms import OpenAI
+# # faiss
+# from langchain.vectorstores import FAISS
+# from langchain.embeddings import OpenAIEmbeddings
+# from langchain.document_loaders import TextLoader
+# from langchain.vectorstores import FAISS
+
+# from langchain.embeddings import OpenAIEmbeddings
+# from langchain.document_loaders import TextLoader
+# from langchain.vectorstores import FAISS
+
+# Testing multi-retrieval QA chains
+# class BaseRetriever(ABC):
+#     def __init__(self):
+#         self.qa_path = LEO_DIR + r'/text/'
+#         self.onboard_path = LEO_DIR + r'/text/projectText/'
+#         self.qa_docs = TextLoader(self.qa_path + 'talentDAOcore.txt').load_and_split()
+#         self.qa_retriever = FAISS.from_documents(self.qa_docs, OpenAIEmbeddings()).as_retriever()
+#         self.onboard_docs = TextLoader(self.onboard_path + 'talentDAOProjects.txt').load_and_split()
+#         self.onboard_retriever = FAISS.from_documents(self.onboard_docs, OpenAIEmbeddings()).as_retriever()
+#         self.llm = OpenAI(openai_api_key=OPENAI_API_KEY)
+#         self.retriever_infos = [
+#         {
+#             "name": "talentDAO core team info", 
+#             "description": "Good for answering questions about talentDAO's core team members", 
+#             "retriever": self.qa_retriever
+#         },
+#         {
+#             "name": "talentDAO project info", 
+#             "description": "Good for responding to intros with relevant projects", 
+#             "retriever": self.onboard_retriever}]
+        
+#     @abstractmethod
+#     def search(self, query: str) -> List[Document]:
+#         """Responds to a query about the users documents.
+#             Args:
+#                 query: string to find relevant docs for
+#             Returns:
+#                 response to query
+#         """
+#         chain = MultiRetrievalQAChain.from_retrievers(self.llm, self.retriever_infos, retriever_descriptions=self.retriever_infos verbose=True)
+#         result = chain.run(query)
+#         return result.split('\n')
+#     def get_relevant_projects(self, intro: str) -> List[str]:
+#         """Responds to a query about the users documents.
+#             Args:
+#                 query: string to find relevant docs for
+#             Returns:
+#                 response to query
+#         """
+#         query = f"What are one or two projects that might be interesting for a user with the following intro: {intro}? \nPlease respond in a helpful, welcoming tone."
+#         chain = MultiRetrievalQAChain.from_retrievers(self.llm, self.retriever_infos, verbose=True)
+#         result = chain.run(query)
+#         return result.split('\n') # Split the response text into a list of sentences

@@ -78,3 +78,9 @@ def should_block(guild: Optional[discord.Guild]) -> bool:
         logger.info(f"Guild {guild} not allowed")
         return True
     return False
+
+def has_any_role(member: discord.Member, roles: List[str]) -> bool:
+    for role_name in roles:
+        if discord.utils.get(member.roles, name=role_name) is not None:
+            return True
+    return False

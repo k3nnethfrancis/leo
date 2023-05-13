@@ -45,90 +45,36 @@ class CompletionData:
     status_text: Optional[str]
 
 
-# Asynchronous function to generate a response using GPT-3.5-turbo model
-async def generate_completion_response(
-    messages: List[Message], user: str
-) -> CompletionData:
-    '''Generate a completion response from OpenAI's API.
-    
-    Args:
-        messages (List[Message]): A list of Message objects representing the conversation history.
-        user (str): The user's Discord ID.
-        
-    Returns:
-        CompletionData: A CompletionData object containing the completion result, reply text, and status text.
-    '''
-    try:
-        # Create a Prompt instance using bot information and messages provided
-        prompt = Prompt(
-            header=Message(
-                "System", f"Instructions for {MY_BOT_NAME}: {BOT_INSTRUCTIONS}" # BOT_INSTRUCTIONS is imported from constants.py
-            ),
-            examples=MY_BOT_EXAMPLE_CONVOS, # MY_BOT_EXAMPLE_CONVOS is imported from constants.py
-            convo=Conversation(messages + [Message(MY_BOT_NAME)]), # Conversation is imported from base.py
-        )
-        # Generate the prompt text from the created Prompt instance
-        rendered = prompt.render() # Prompt.render() is defined in base.py
-        # Call OpenAI's API to create a completion using the generated text
-        response = openai.Completion.create(
-            engine="gpt-3.5-turbo",
-            prompt=rendered,
-            temperature=1.0,
-            top_p=0.9,
-            max_tokens=512,
-            stop=[""],
-        )
-        # Extract and clean the reply text from the generated response
-        reply = response.choices[0].text.strip()
+import functools
+import concurrent.futures
+import asyncio
+from typing import List
 
-        # Check if a reply was generated
-        if reply:
-            # Moderate the response message using the moderation framework
-            flagged_str, blocked_str = moderate_message(
-                message=(rendered + reply)[-500:], user=user
-            )
-            # If the message is classified as blocked, return a CompletionData with the blocked status
-            if len(blocked_str) > 0:
-                return CompletionData(
-                    status=CompletionResult.MODERATION_BLOCKED,
-                    reply_text=reply,
-                    status_text=f"from_response:{blocked_str}",
-                )
-            # If the message is flagged, return a CompletionData with the flagged status
-            if len(flagged_str) > 0:
-                return CompletionData(
-                    status=CompletionResult.MODERATION_FLAGGED,
-                    reply_text=reply,
-                    status_text=f"from_response:{flagged_str}",
-                )
-        # If the result is OK and doesn't trigger any moderation concerns, return the CompletionData with the OK status
-        return CompletionData(
-            status=CompletionResult.OK, reply_text=reply, status_text=None
-        )
-    # Handle specific errors and exceptions that can occur during the API call
-    # If the response is too long, return a CompletionData with the too long status
-    except openai.error.InvalidRequestError as e:
-        if "This model's maximum context length" in e.user_message:
-            # If the input exceeds the model's maximum context length, return a too-long CompletionData
-            return CompletionData(
-                status=CompletionResult.TOO_LONG, reply_text=None, status_text=str(e)
-            )
-        # If the request is invalid, return a CompletionData with the invalid request status
-        else:
-            # Log the exception and return an invalid-request CompletionData object
-            logger.exception(e)
-            return CompletionData(
-                status=CompletionResult.INVALID_REQUEST,
-                reply_text=None,
-                status_text=str(e),
-            )
-    # If any other error occurs, return a CompletionData with the other error status
-    except Exception as e:
-        # Log the exception and return an other-error CompletionData object
-        logger.exception(e)
-        return CompletionData(
-            status=CompletionResult.OTHER_ERROR, reply_text=None, status_text=str(e)
-        )
+async def generate_chat_completion_response(messages: List[Message], user) -> CompletionData:
+    inputs = [{"role": "assistant" if message.user == "Assistant" else "user", "content": message.text} for message in messages]
+
+    logger.debug("Calling OpenAI API with generated inputs")
+
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        response = await loop.run_in_executor(executor, functools.partial(
+            openai.ChatCompletion.create,
+            model="gpt-3.5-turbo", # Change the model to gpt-3.5-turbo
+            messages=inputs,
+        ))
+    
+    logger.debug("Received response from OpenAI API")
+    response_data = CompletionData(
+        status=CompletionResult.OK,
+        reply_text=response['choices'][0]['message']['content'],
+        status_text=None
+    )
+
+    # Log the OpenAI API response
+    logger.debug(f"OpenAI API response: {response}")
+    logger.debug(f"Model: {response['model']}")
+
+    return response_data
 
 # Define a function to process the response from the OpenAI API
 async def process_response(
@@ -220,24 +166,112 @@ async def process_response(
     logger.debug(f"Finished processing response for user {user} in thread {thread.name}")  # NEW logging statement
 
 
-async def generate_chat35_completion_response(messages: List[Message], user) -> CompletionData:
-    inputs = [{"role": "assistant" if message.user == "Assistant" else "user", "content": message.text} for message in messages]
-    
-    logger.debug("Calling GPT-3.5 Turbo API with generated inputs")
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=inputs
-    )
-    
-    logger.debug("Received response from GPT-3.5 Turbo API")
-    response_data = CompletionData(
-        status=CompletionResult.OK,
-        reply_text=response['choices'][0]['message']['content'], # Change how reply text is assigned
-        status_text=None
-    )
+#### OLD CHAT FUNCTIONALITY ####
 
-    # Log the OpenAI API response
-    logger.debug(f"OpenAI API response: {response}")
-    logger.debug(f"Model: {response['model']}")
+# # Asynchronous function to generate a response using GPT-3.5-turbo model
+# async def generate_completion_response(
+#     messages: List[Message], user: str
+# ) -> CompletionData:
+#     '''Generate a completion response from OpenAI's API.
+    
+#     Args:
+#         messages (List[Message]): A list of Message objects representing the conversation history.
+#         user (str): The user's Discord ID.
+        
+#     Returns:
+#         CompletionData: A CompletionData object containing the completion result, reply text, and status text.
+#     '''
+#     try:
+#         # Create a Prompt instance using bot information and messages provided
+#         prompt = Prompt(
+#             header=Message(
+#                 "System", f"Instructions for {MY_BOT_NAME}: {BOT_INSTRUCTIONS}" # BOT_INSTRUCTIONS is imported from constants.py
+#             ),
+#             examples=MY_BOT_EXAMPLE_CONVOS, # MY_BOT_EXAMPLE_CONVOS is imported from constants.py
+#             convo=Conversation(messages + [Message(MY_BOT_NAME)]), # Conversation is imported from base.py
+#         )
+#         # Generate the prompt text from the created Prompt instance
+#         rendered = prompt.render() # Prompt.render() is defined in base.py
+#         # Call OpenAI's API to create a completion using the generated text
+#         response = openai.Completion.create(
+#             engine="gpt-4",
+#             prompt=rendered,
+#             temperature=1.0,
+#             top_p=0.9,
+#             max_tokens=512,
+#             stop=["<|endoftext|>"],
+#         )
+#         # Extract and clean the reply text from the generated response
+#         reply = response.choices[0].text.strip()
 
-    return response_data
+#         # Check if a reply was generated
+#         if reply:
+#             # Moderate the response message using the moderation framework
+#             flagged_str, blocked_str = moderate_message(
+#                 message=(rendered + reply)[-500:], user=user
+#             )
+#             # If the message is classified as blocked, return a CompletionData with the blocked status
+#             if len(blocked_str) > 0:
+#                 return CompletionData(
+#                     status=CompletionResult.MODERATION_BLOCKED,
+#                     reply_text=reply,
+#                     status_text=f"from_response:{blocked_str}",
+#                 )
+#             # If the message is flagged, return a CompletionData with the flagged status
+#             if len(flagged_str) > 0:
+#                 return CompletionData(
+#                     status=CompletionResult.MODERATION_FLAGGED,
+#                     reply_text=reply,
+#                     status_text=f"from_response:{flagged_str}",
+#                 )
+#         # If the result is OK and doesn't trigger any moderation concerns, return the CompletionData with the OK status
+#         return CompletionData(
+#             status=CompletionResult.OK, reply_text=reply, status_text=None
+#         )
+#     # Handle specific errors and exceptions that can occur during the API call
+#     # If the response is too long, return a CompletionData with the too long status
+#     except openai.error.InvalidRequestError as e:
+#         if "This model's maximum context length" in e.user_message:
+#             # If the input exceeds the model's maximum context length, return a too-long CompletionData
+#             return CompletionData(
+#                 status=CompletionResult.TOO_LONG, reply_text=None, status_text=str(e)
+#             )
+#         # If the request is invalid, return a CompletionData with the invalid request status
+#         else:
+#             # Log the exception and return an invalid-request CompletionData object
+#             logger.exception(e)
+#             return CompletionData(
+#                 status=CompletionResult.INVALID_REQUEST,
+#                 reply_text=None,
+#                 status_text=str(e),
+#             )
+#     # If any other error occurs, return a CompletionData with the other error status
+#     except Exception as e:
+#         # Log the exception and return an other-error CompletionData object
+#         logger.exception(e)
+#         return CompletionData(
+#             status=CompletionResult.OTHER_ERROR, reply_text=None, status_text=str(e)
+#         )
+
+
+# async def generate_chat35_completion_response(messages: List[Message], user) -> CompletionData:
+#     inputs = [{"role": "assistant" if message.user == "Assistant" else "user", "content": message.text} for message in messages]
+    
+#     logger.debug("Calling OpenAI API with generated inputs")
+#     response = openai.ChatCompletion.create(
+#         model="gpt-4",
+#         messages=inputs
+#     )
+    
+#     logger.debug("Received response from OpenAI API")
+#     response_data = CompletionData(
+#         status=CompletionResult.OK,
+#         reply_text=response['choices'][0]['message']['content'], # Change how reply text is assigned
+#         status_text=None
+#     )
+
+#     # Log the OpenAI API response
+#     logger.debug(f"OpenAI API response: {response}")
+#     logger.debug(f"Model: {response['model']}")
+
+#     return response_data
