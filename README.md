@@ -1,6 +1,6 @@
 # Project LION Discord Bot
 
-Forked the OpenAI Discord bot and upgraded the model to gpt-3.5-turbo, added questions over documents feature, experimenting on onboarding project recommender feature. Also uses the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages. 
+Leo is a Discord bot built for DAOs. It leverages multiple LLMs including `gpt-4`, `gpt-3.5-turbo`, and `ada` for embeddings. Features include chat, document Q&A, and a project recommender. Also uses the [moderations API](https://beta.openai.com/docs/api-reference/moderations) to filter the messages.
 
 # Features
 ### Chat
